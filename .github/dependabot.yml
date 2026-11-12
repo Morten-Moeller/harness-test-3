@@ -1,0 +1,35 @@
+# Dependabot keeps the GitHub Actions current in every project. Add the project's package
+# ecosystems below (npm, nuget, gomod, pip, ...). Patch and minor updates from Dependabot are low
+# risk and merge automatically when the gates and the code review pass (harness/policies/auto-merge.md).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # - package-ecosystem: npm
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+  #   cooldown:
+  #     default-days: 7
+  #   groups:
+  #     minor-and-patch:
+  #       patterns: ["*"]
+  #       update-types: [minor, patch]

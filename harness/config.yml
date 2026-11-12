@@ -1,0 +1,63 @@
+# Harness configuration. Copied once by bootstrap.sh, then owned by the project.
+#
+# Shape: keep it flat. Scalars as `key: value`, lists as `- item` lines under their key.
+# The hooks and scripts parse this file with awk; nested maps deeper than one level, inline
+# lists and anchors are not supported.
+
+# Language of spec and ADR documents and of every output for people (reports, PR bodies).
+doc_language: de
+
+# Branch that pull requests target and that risk-level.sh diffs against.
+default_branch: main
+
+# Directories with source code. The Stop hook reminds about uncommitted changes under them.
+source_paths:
+  - src
+
+# Make target that regenerates the committed generated files (contracts, API types). The gate
+# `make drift` runs it and fails when a committed copy differs (harness/quality-gates.md).
+# Empty = no generated files.
+contracts_generate_target: ""
+
+# End-to-end tests in CI: true runs `make e2e` as the required check `gates (e2e)`; the tests must
+# start the application themselves. false: `make e2e` runs locally (project-rules/testing.md) and
+# the check passes without running.
+e2e_in_ci: false
+
+# The size escalator: more changed lines than this raises low to medium.
+low_risk_max_lines: 200
+
+# Automatic merge (see harness/policies/auto-merge.md).
+auto_merge_enabled: true
+auto_merge_allowlist:
+  - "dependabot[bot]"
+  - "Morten-Moeller"
+
+# Human gate G2 for medium and high risk (harness/policies/human-approval.md). The person who
+# directs the work reads the PR and sets this label. Empty disables the label; then only an
+# approving review by another person passes the gate.
+human_approval_label: human-approved
+
+# Require an approving review by a second person: "" (never), "high", or "medium" (medium and high).
+second_reviewer_for: ""
+# Gate G3: the head commit needs the status verified, set by /verify, before the gate passes:
+# "high" (the default when the key is missing), "medium" (medium and high), or "" (never).
+# Pull requests by bots are exempt.
+verify_required_for: high
+
+# /wave (decision 0020): at most this many specs are implemented at the same time, one worktree
+# and one implementer agent each. 1 runs one spec at a time.
+parallel_max: 3
+
+# Command a worker runs in its new worktree before it implements, as one quoted string. Add the
+# dependency install of the project, for example "make setup && pnpm -C frontend install".
+worktree_setup: "make setup"
+
+# /review (harness/review.md): one combined agent run when the diff under review (the whole PR, or
+# the delta of an incremental run) changes at most this many lines.
+# The model and effort of the reviewer agents are set in .claude/agents/*.md.
+review_combined_max_lines: 150
+
+# Rules of harness/scripts/review-rules.sh to switch off, one per line:
+# spec, adr, entscheidung, gate, kommentar, generiert, kriterium, contract, doku.
+review_rules_disabled:

@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Runs `make precommit` when the project Makefile defines it (decision 0015). Harness-owned.
+# make setup points core.hooksPath to this directory, once per clone.
+set -e
+root=$(git rev-parse --show-toplevel)
+if grep -qE '^precommit[[:space:]]*:' "$root/Makefile" 2>/dev/null; then
+  make -C "$root" --no-print-directory precommit
+fi

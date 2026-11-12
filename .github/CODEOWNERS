@@ -1,0 +1,11 @@
+# CODEOWNERS requests a person as reviewer for the control files. The merge gate is human-gate
+# (harness/policies/human-approval.md); second_reviewer_for in harness/config.yml makes the review mandatory.
+# Morten-Moeller is replaced by bootstrap.sh. Add teams or people per path as the project grows.
+AGENTS.md                        @Morten-Moeller
+CLAUDE.md                        @Morten-Moeller
+/harness/                        @Morten-Moeller
+/.claude/                        @Morten-Moeller
+/.github/                        @Morten-Moeller
+/contracts/                      @Morten-Moeller
+/project-rules/                  @Morten-Moeller
+Makefile                         @Morten-Moeller

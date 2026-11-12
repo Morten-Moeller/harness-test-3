@@ -1,0 +1,54 @@
+name: Branch cleanup
+
+# Deletes the head branch of a pull request that a bot merged (GitHub auto-merge through
+# GITHUB_TOKEN or the app of AUTOMERGE_TOKEN). The repository setting "Automatically delete head
+# branches" acts only on merges by a person, and a merge through GITHUB_TOKEN starts no workflow,
+# so a job on `closed` never runs. A branch is deleted only when it still points to the merged head
+# commit, never the default branch, never a branch of a fork.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: cleanup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged head branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT: ${{ github.event.repository.default_branch }}
+        run: |
+          [ -n "$DEFAULT" ] || DEFAULT=$(gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch)
+          [ -n "$DEFAULT" ] || { echo "No default branch; nothing deleted."; exit 1; }
+          since=$(date -u -d '7 days ago' +%Y-%m-%d)
+          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --search "merged:>=$since" --limit 200 \
+            --json number,headRefName,headRefOid,mergedBy,isCrossRepository \
+            --jq '.[] | select((.isCrossRepository | not)
+                     and ((.mergedBy.is_bot // false) or ((.mergedBy.login // "") | startswith("app/"))))
+                   | [.number, .headRefName, .headRefOid] | @tsv' > "$RUNNER_TEMP/merged.tsv"
+          while IFS=$'\t' read -r pr branch oid; do
+            [ -n "$branch" ] || continue
+            if [ "$branch" = "$DEFAULT" ]; then echo "#$pr: $branch is the default branch; kept."; continue; fi
+            if ! [[ "$branch" =~ ^[A-Za-z0-9._/-]+$ ]]; then echo "#$pr: $branch has characters outside [A-Za-z0-9._/-]; kept."; continue; fi
+            if [ "$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base "$branch" --json number --jq length)" != 0 ]; then
+              echo "#$pr: $branch is the base of an open pull request; kept."; continue
+            fi
+            if ! sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq .object.sha 2>/dev/null); then continue; fi
+            if [ "$sha" != "$oid" ]; then echo "#$pr: $branch has commits after the merge; kept."; continue; fi
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" --silent 2>"$RUNNER_TEMP/err"; then
+              echo "#$pr: deleted $branch."
+            else
+              echo "#$pr: $branch not deleted: $(head -1 "$RUNNER_TEMP/err")"
+            fi
+          done < "$RUNNER_TEMP/merged.tsv"

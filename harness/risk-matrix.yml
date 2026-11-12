@@ -1,0 +1,152 @@
+# Risk matrix. Read by harness/scripts/risk-level.sh and by the /risk skill.
+#
+# Shape: keep it flat. Each level is a list of glob patterns, one per line, quoted.
+# The script parses this file with awk; nested maps or inline lists are not supported.
+#
+# Matching: a file takes the highest level whose pattern matches it. `**` matches across
+# directories, `*` matches inside one directory segment. Files that match nothing are medium.
+#
+# Escalators raise the level by one step and never lower it. `keywords` are matched against
+# added lines of the diff, case-insensitive, except in low files and in files that match
+# `keyword_exempt` (generated scripts whose comments and variable names hold such words).
+# `dependency_manifests` are at least medium unless the
+# PR is a Dependabot patch or minor update with no other files. `gate_markers` are extended
+# regular expressions in single quotes, matched against added lines outside Markdown and docs/.
+# A match raises low to medium, so a switched-off check never merges automatically; the rule
+# check of /review reads the same list (harness/review.md).
+
+high:
+  - "contracts/**"
+  - "**/migrations/**"
+  - "**/*migration*"
+  - "**/auth/**"
+  - "**/security/**"
+  - "**/payment/**"
+  - "**/billing/**"
+  - "infra/**"
+  - "infrastructure/**"
+  - "terraform/**"
+  - "deploy/**"
+  - "Dockerfile*"
+  - "**/Dockerfile*"
+  - "docker-compose*.yml"
+  - ".github/workflows/**"
+  - "AGENTS.md"
+  - "CLAUDE.md"
+  - "harness/policies/**"
+  - "harness/risk-matrix.yml"
+  - "harness/config.yml"
+  - "**/*.env*"
+  - "**/secrets/**"
+
+medium:
+  - "src/**"
+  - "apps/**"
+  - "packages/**"
+  - "lib/**"
+  - "cmd/**"
+  - "internal/**"
+  - "Makefile"
+  - "**/*.mk"
+  - ".github/actions/**"
+  - ".github/dependabot.yml"
+  - ".github/CODEOWNERS"
+  - "harness/**"
+  - ".claude/**"
+  - "project-rules/**"
+
+low:
+  - "docs/**"
+  - "**/*.md"
+  - "**/*.txt"
+  - "**/*_test.*"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/*Tests/**"
+  - "**/__tests__/**"
+  - "**/test/**"
+  - "**/tests/**"
+  - ".editorconfig"
+  - ".gitignore"
+  - ".prettierrc*"
+  - "LICENSE"
+
+dependency_manifests:
+  - "package.json"
+  - "**/package.json"
+  - "pnpm-lock.yaml"
+  - "**/pnpm-lock.yaml"
+  - "package-lock.json"
+  - "**/package-lock.json"
+  - "yarn.lock"
+  - "**/yarn.lock"
+  - "go.mod"
+  - "go.sum"
+  - "**/go.mod"
+  - "**/go.sum"
+  - "**/*.csproj"
+  - "**/packages.lock.json"
+  - "Directory.Packages.props"
+  - "pyproject.toml"
+  - "poetry.lock"
+  - "requirements*.txt"
+  - "Cargo.toml"
+  - "Cargo.lock"
+  - "pom.xml"
+  - "**/pom.xml"
+  - "build.gradle*"
+  - "**/build.gradle*"
+  - "settings.gradle*"
+  - "**/settings.gradle*"
+  - "gradle.lockfile"
+  - "**/gradle.lockfile"
+  - "**/gradle/wrapper/gradle-wrapper.properties"
+  - "**/.mvn/wrapper/**"
+  - "**/mvnw"
+  - "**/mvnw.cmd"
+
+keywords:
+  - "password"
+  - "passwd"
+  - "secret"
+  - "api_key"
+  - "apikey"
+  - "private_key"
+  - "token"
+  - "drop table"
+  - "truncate"
+  - "delete from"
+  - "chmod 777"
+  - "eval("
+  - "dangerouslysetinnerhtml"
+
+keyword_exempt:
+  - "**/mvnw"
+  - "**/mvnw.cmd"
+  - "**/.mvn/wrapper/**"
+
+gate_markers:
+  - '\.(skip|only)\('
+  - '(^|[^A-Za-z0-9_])x(it|describe|test)\('
+  - '@ts-(ignore|nocheck|expect-error)'
+  - 'eslint-disable'
+  - 'nolint'
+  - '#[[:space:]]*noqa'
+  - '#[[:space:]]*type:[[:space:]]*ignore'
+  - 't\.Skip\('
+  - '\[Ignore'
+  - 'Skip[[:space:]]*=[[:space:]]*"'
+  - 'pytest\.mark\.(skip|xfail)'
+  - '--no-verify'
+  - 'continue-on-error:[[:space:]]*true'
+  - 'SuppressMessage'
+  - '#pragma[[:space:]]+warning[[:space:]]+disable'
+  - '(istanbul|c8)[[:space:]]+ignore'
+
+# Paths of which only one spec of a wave may change something (harness/scripts/wave-check.sh,
+# decision 0020). Two specs that both touch a match do not run at the same time. Add the generated
+# files of the project. Without this key: contracts/**, **/migration/**, **/migrations/**.
+wave_exclusive:
+  - "contracts/**"
+  - "**/migration/**"
+  - "**/migrations/**"

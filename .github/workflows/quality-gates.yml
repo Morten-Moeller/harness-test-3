@@ -1,0 +1,51 @@
+name: Quality gates
+
+# One job per gate. Every job runs the project's setup action, then `make <gate>`.
+# The check names `gates (test)` ... are required by harness/github/ruleset.json.
+# `drift` runs only when harness/config.yml names a generator (decision 0012), `e2e` only with
+# e2e_in_ci: true (decision 0013). Otherwise the job passes without setup.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: gates (${{ matrix.gate }})
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [test, typecheck, lint, sast, deps, drift, e2e]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Gate active
+        id: active
+        env:
+          GATE: ${{ matrix.gate }}
+        run: |
+          reason=""
+          case "$GATE" in
+            drift) [ -n "$(harness/scripts/drift.sh --print-target)" ] || reason="contracts_generate_target is empty: no generated files to compare." ;;
+            e2e) [ "$(awk '$1 == "e2e_in_ci:" { print $2; exit }' harness/config.yml)" = true ] || reason="e2e_in_ci is not true: the end-to-end tests run locally (project-rules/testing.md)." ;;
+          esac
+          if [ -n "$reason" ]; then echo "$reason"; echo "run=false" >> "$GITHUB_OUTPUT"; else echo "run=true" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: ./.github/actions/setup
+        if: ${{ steps.active.outputs.run == 'true' }}
+
+      - run: make ${{ matrix.gate }}
+        if: ${{ steps.active.outputs.run == 'true' }}

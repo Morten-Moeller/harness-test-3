@@ -1,0 +1,129 @@
+name: AI review
+
+# /review <PR> runs in the developer's Claude Code session, reports the findings there and sets the
+# commit status ai-review on the head commit (harness/review.md, decision 0009). The ruleset
+# requires that status. This workflow runs the rule check (harness/scripts/review-rules.sh with the
+# risk matrix and the config, all copies from the base branch) as the required check review-rules,
+# sets needs-human on a changed gate and sets ai-review itself for Dependabot patch and minor
+# updates. With the secret CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`, works with a Claude
+# subscription) or ANTHROPIC_API_KEY, the job review runs /review in CI.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  statuses: write
+  id-token: write
+
+jobs:
+  review-rules:
+    name: review-rules
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-rules-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: dependabot
+        if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Rule check
+        id: rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: origin/${{ github.base_ref }}
+          UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+        run: |
+          base_copy() {
+            git cat-file -e "$BASE:$1" 2>/dev/null || return 1
+            git show "$BASE:$1" > "$RUNNER_TEMP/${1##*/}"
+          }
+          if ! base_copy harness/scripts/review-rules.sh || ! base_copy harness/scripts/risk-level.sh; then
+            echo "Rule check skipped: the rule scripts are not on $BASE yet (harness update). Code of the pull request does not run here."
+            exit 0
+          fi
+          if ! base_copy harness/risk-matrix.yml || ! grep -q '^gate_markers:' "$RUNNER_TEMP/risk-matrix.yml"; then
+            echo "harness/risk-matrix.yml on $BASE has no gate_markers yet; using the matrix of the pull request (data, not code)."
+            cp harness/risk-matrix.yml "$RUNNER_TEMP/risk-matrix.yml"
+          fi
+          if ! base_copy harness/config.yml; then
+            echo "harness/config.yml is not on $BASE yet; using the config of the pull request."
+            cp harness/config.yml "$RUNNER_TEMP/config.yml"
+          fi
+          git diff --name-only "$BASE...HEAD" > "$RUNNER_TEMP/files.txt"
+          git diff "$BASE...HEAD" > "$RUNNER_TEMP/diff.patch"
+          args=(--files-from "$RUNNER_TEMP/files.txt" --diff-from "$RUNNER_TEMP/diff.patch"
+                --matrix "$RUNNER_TEMP/risk-matrix.yml" --config "$RUNNER_TEMP/config.yml")
+          if [ -n "$UPDATE_TYPE" ]; then args+=(--dependabot "$UPDATE_TYPE"); fi
+          level=$(bash "$RUNNER_TEMP/risk-level.sh" "${args[@]}" --format level)
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          rules=(bash "$RUNNER_TEMP/review-rules.sh" --root "$GITHUB_WORKSPACE" --pr "$PR" --level "$level"
+                 --matrix "$RUNNER_TEMP/risk-matrix.yml")
+          # A base branch before harness 0.4.0 has a review-rules.sh without --config.
+          if grep -q -- '--config)' "$RUNNER_TEMP/review-rules.sh"; then
+            rules+=(--config "$RUNNER_TEMP/config.yml")
+          fi
+          status=0
+          "${rules[@]}" --format json > "$RUNNER_TEMP/rules.json" || status=$?
+          "${rules[@]}" --format markdown >> "$GITHUB_STEP_SUMMARY" || true
+          if [ "$(jq -r .needs_human "$RUNNER_TEMP/rules.json")" = true ]; then
+            gh pr edit "$PR" --add-label needs-human || echo "Could not set needs-human."
+          elif gh pr view "$PR" --json labels --jq '.labels[].name' | grep -qx needs-human; then
+            set_by=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/events?per_page=100" \
+              | jq -s -r 'add // [] | [.[] | select(.event == "labeled" and .label.name == "needs-human")] | last | .actor.login // ""')
+            if [ "$set_by" = "github-actions[bot]" ]; then
+              gh pr edit "$PR" --remove-label needs-human || echo "Could not remove needs-human."
+            fi
+          fi
+          jq -r '.findings[] | "\(.rule) \(.location): \(.message)"' "$RUNNER_TEMP/rules.json"
+          exit "$status"
+      - name: Status for Dependabot patch and minor updates
+        if: ${{ steps.rules.outputs.level == 'low' && (steps.dependabot.outputs.update-type == 'version-update:semver-patch' || steps.dependabot.outputs.update-type == 'version-update:semver-minor') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context=ai-review \
+            -f description="Dependabot ${UPDATE_TYPE##*-}: kein KI-Review, deps und sast prüfen" --silent
+
+  review:
+    name: review
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'edited' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - id: token
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$OAUTH" ] || [ -n "$API" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - if: ${{ steps.token.outputs.present == 'true' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Run /review in CI
+        if: ${{ steps.token.outputs.present == 'true' }}
+        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: "/review ${{ github.event.pull_request.number }}"
+          claude_args: >-
+            --max-turns 80
+            --allowedTools "Read,Write,Grep,Glob,Skill,Agent,Bash(gh pr view*),Bash(gh pr diff*),Bash(git diff*),Bash(git log*),Bash(git show*),Bash(git fetch*),Bash(git rev-list*),Bash(git merge-base*),Bash(harness/scripts/risk-level.sh*),Bash(harness/scripts/review-rules.sh*),Bash(harness/scripts/review-status.sh publish*),Bash(harness/scripts/review-status.sh save*),Bash(harness/scripts/review-status.sh load*),Bash(harness/scripts/review-status.sh last*)"

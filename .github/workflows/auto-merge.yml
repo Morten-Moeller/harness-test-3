@@ -1,0 +1,152 @@
+name: Merge policy
+
+# Two jobs:
+#   human-gate   required check. Passes for low risk at once; for medium and high when a person set
+#                the label human-approved after the last push, or another person approved the head
+#                commit, and for the levels in verify_required_for when the head has the status
+#                verified (G3). Logic: harness/scripts/human-gate.sh, decisions 0006, 0010, 0018.
+#   auto-merge   enables GitHub auto-merge when every condition of harness/policies/auto-merge.md
+#                holds, and disables it otherwise: low risk on its own, medium and high risk when
+#                human-gate passed, so the label is the merge decision. GitHub merges when all
+#                required checks pass.
+# The head branch of a merge by github-actions is deleted by branch-cleanup.yml: events of
+# GITHUB_TOKEN start no workflow, and the repository setting acts only on merges by a person.
+# Configuration, risk matrix and scripts come from the base branch, so a pull request cannot change
+# the rules it is judged by. A file that does not exist on the base branch yet is taken from the
+# pull request.
+# In a project agents must not edit this file (.claude/settings.json deny rule, CODEOWNERS).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, converted_to_draft]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  actions: read
+  contents: write
+  issues: read
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  human-gate:
+    name: human-gate
+    runs-on: ubuntu-latest
+    outputs:
+      level: ${{ steps.level.outputs.level }}
+      docs_only: ${{ steps.level.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Dependabot metadata
+        id: dependabot
+        if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Rules from the base branch
+        env:
+          BASE: origin/${{ github.event.pull_request.base.ref }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/base"
+          for f in harness/config.yml harness/risk-matrix.yml harness/scripts/risk-level.sh harness/scripts/human-gate.sh; do
+            if git cat-file -e "$BASE:$f" 2>/dev/null; then
+              git show "$BASE:$f" > "$RUNNER_TEMP/base/${f##*/}"
+            else
+              echo "$f does not exist on $BASE; using the copy of the pull request."
+              cp "$f" "$RUNNER_TEMP/base/${f##*/}"
+            fi
+          done
+          git diff --name-only "$BASE...HEAD" > "$RUNNER_TEMP/files.txt"
+          git diff "$BASE...HEAD" > "$RUNNER_TEMP/diff.patch"
+
+      - name: Compute the level
+        id: level
+        env:
+          UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+        run: |
+          args=(--files-from "$RUNNER_TEMP/files.txt" --diff-from "$RUNNER_TEMP/diff.patch"
+                --matrix "$RUNNER_TEMP/base/risk-matrix.yml" --config "$RUNNER_TEMP/base/config.yml")
+          if [ -n "$UPDATE_TYPE" ]; then args+=(--dependabot "$UPDATE_TYPE"); fi
+          json=$(bash "$RUNNER_TEMP/base/risk-level.sh" "${args[@]}" --format json)
+          echo "level=$(printf '%s' "$json" | jq -r .level)" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$(printf '%s' "$json" | jq -r .docs_only)" >> "$GITHUB_OUTPUT"
+          bash "$RUNNER_TEMP/base/risk-level.sh" "${args[@]}" --format text
+
+      - name: Gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          LEVEL: ${{ steps.level.outputs.level }}
+        run: |
+          bash "$RUNNER_TEMP/base/human-gate.sh" --level "$LEVEL" --pr "$PR" --sha "$SHA" \
+            --author "$AUTHOR" --repo "$REPO" --config "$RUNNER_TEMP/base/config.yml" --remove-stale
+
+  auto-merge:
+    name: auto-merge
+    needs: human-gate
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Decide
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN || github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          LEVEL: ${{ needs.human-gate.outputs.level }}
+          DOCS_ONLY: ${{ needs.human-gate.outputs.docs_only }}
+          HUMAN_GATE: ${{ needs.human-gate.result }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          git show "origin/$BASE:harness/config.yml" > "$RUNNER_TEMP/config.yml"
+          config="$RUNNER_TEMP/config.yml"
+          reason=""
+          enabled=$(awk '$1 == "auto_merge_enabled:" { print $2; exit }' "$config")
+          default_branch=$(awk '$1 == "default_branch:" { print $2; exit }' "$config")
+          allow=$(awk '/^auto_merge_allowlist:/ { f=1; next } f && /^[ \t]*-/ { s=$0; sub(/^[ \t]*-[ \t]*/, "", s); gsub(/"/, "", s); print s; next } f && !/^[ \t]*-/ { f=0 }' "$config")
+          [ "$enabled" = "true" ] || reason="auto_merge_enabled is not true"
+          [ -n "$reason" ] || [ "$DRAFT" != "true" ] || reason="draft"
+          [ -n "$reason" ] || [ "$BASE" = "$default_branch" ] || reason="base is $BASE, not $default_branch"
+          if [ -z "$reason" ]; then
+            checks=$(gh api "repos/$GITHUB_REPOSITORY/rules/branches/$BASE" \
+              --jq '[.[] | select(.type == "required_status_checks")] | length' 2>/dev/null || echo 0)
+            [ "${checks:-0}" -gt 0 ] || reason="$BASE has no required status checks (run harness/scripts/setup-repo.sh)"
+          fi
+          if [ -z "$reason" ]; then
+            case "$LEVEL" in
+              low)
+                case ",$LABELS," in *,needs-human,*) reason="label needs-human" ;; esac
+                if [ -z "$reason" ] && ! printf '%s\n' "$allow" | grep -Fxq "$AUTHOR" && [ "$DOCS_ONLY" != "true" ]; then
+                  reason="author $AUTHOR not on the allowlist and change is not docs-only"
+                fi
+                ;;
+              medium|high)
+                [ "$HUMAN_GATE" = "success" ] || reason="risk level $LEVEL waits for the human gate (label after the last push, or an approval)"
+                ;;
+              *) reason="risk level is ${LEVEL:-unknown}" ;;
+            esac
+          fi
+          if [ -z "$reason" ]; then
+            echo "Conditions met: enabling auto-merge (squash)."
+            gh pr merge "$PR" --auto --squash
+          else
+            echo "Not enabling auto-merge: $reason"
+            gh pr merge "$PR" --disable-auto 2>/dev/null || true
+          fi

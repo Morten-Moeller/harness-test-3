@@ -1,0 +1,57 @@
+name: Risk
+
+# Computes the risk level with harness/scripts/risk-level.sh, writes it to the job summary and
+# sets the risk:* label. The label is informational: ai-review.yml and auto-merge.yml recompute.
+# On Dependabot PRs the GITHUB_TOKEN is read-only, so the label step may fail there; the level
+# in the summary is still correct.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  risk:
+    name: risk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Dependabot metadata
+        id: dependabot
+        if: ${{ github.actor == 'dependabot[bot]' }}
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Compute the level
+        id: level
+        env:
+          BASE: origin/${{ github.base_ref }}
+          UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+        run: |
+          args=(--base "$BASE")
+          if [ -n "$UPDATE_TYPE" ]; then args+=(--dependabot "$UPDATE_TYPE"); fi
+          level=$(harness/scripts/risk-level.sh "${args[@]}" --format level)
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          harness/scripts/risk-level.sh "${args[@]}" --format markdown >> "$GITHUB_STEP_SUMMARY"
+          harness/scripts/risk-level.sh "${args[@]}" --format text
+
+      - name: Set the label
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          LEVEL: ${{ steps.level.outputs.level }}
+        run: |
+          for l in low medium high; do
+            if [ "$l" != "$LEVEL" ]; then gh pr edit "$PR" --remove-label "risk:$l" 2>/dev/null || true; fi
+          done
+          gh pr edit "$PR" --add-label "risk:$LEVEL"
