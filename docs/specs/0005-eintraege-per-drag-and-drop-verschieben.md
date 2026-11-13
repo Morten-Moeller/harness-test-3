@@ -1,14 +1,14 @@
 ---
 id: "0005"
 title: Einträge per Drag and Drop verschieben, auch zwischen Listen
-status: done
+status: in Arbeit
 risk: high
 adrs: ["0006"]
 owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
 pr: "#8"
-note: "alle Kriterien erfüllt; A5 im Browser der Session nicht prüfbar, Playwright grün"
+note: "Rückmeldung zur Anzeige beim Ziehen umgesetzt"
 ---
 
 # Einträge per Drag and Drop verschieben, auch zwischen Listen

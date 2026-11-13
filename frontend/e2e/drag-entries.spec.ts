@@ -21,6 +21,31 @@ async function titlesOf(card: Locator): Promise<string[]> {
   return card.getByTestId('entry-title').allTextContents()
 }
 
+async function visibleOrder(card: Locator): Promise<string[]> {
+  const items = await card.getByTestId('entry-item').all()
+  const rows = await Promise.all(
+    items.map(async (item) => ({ y: (await item.boundingBox())?.y ?? 0, title: (await item.getByTestId('entry-title').textContent()) ?? '' })),
+  )
+  return rows.sort((a, b) => a.y - b.y).map((row) => row.title)
+}
+
+async function dragAndCapture(page: Page, handle: Locator, target: Locator, card: Locator): Promise<string[]> {
+  const from = await handle.boundingBox()
+  const to = await target.boundingBox()
+  if (from === null || to === null) {
+    throw new Error('handle or target is not visible')
+  }
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + 12, from.y + 12, { steps: 4 })
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 20 })
+  await expect(page.getByTestId('entry-overlay')).toBeVisible()
+  await page.waitForTimeout(300)
+  const shown = await visibleOrder(card)
+  await page.mouse.up()
+  return shown
+}
+
 async function dragWithMouse(page: Page, handle: Locator, target: Locator): Promise<void> {
   const from = await handle.boundingBox()
   const to = await target.boundingBox()
@@ -69,12 +94,42 @@ test('drags an entry into another list with the mouse', async ({ page }) => {
   const haushalt = listCard(page, 'Haushalt')
   await expect(haushalt).toBeVisible()
 
-  await dragWithMouse(page, entryOf(arbeit, 'Rechnung prüfen').getByTestId('entry-handle'), entryOf(haushalt, 'Staubsaugen'))
+  const shown = await dragAndCapture(page, entryOf(arbeit, 'Rechnung prüfen').getByTestId('entry-handle'), entryOf(haushalt, 'Staubsaugen'), haushalt)
 
-  await expect.poll(() => titlesOf(haushalt)).toEqual(['Rechnung prüfen', 'Staubsaugen', 'Wäsche waschen', 'Blumen gießen'])
+  expect(shown).toContain('Rechnung prüfen')
+  expect(shown).toHaveLength(4)
+  await expect.poll(() => titlesOf(haushalt)).toEqual(shown)
   await expect.poll(() => titlesOf(arbeit)).toEqual(['Bericht schreiben', 'Termin planen'])
   await page.reload()
-  await expect.poll(() => titlesOf(listCard(page, 'Haushalt'))).toEqual(['Rechnung prüfen', 'Staubsaugen', 'Wäsche waschen', 'Blumen gießen'])
+  await expect.poll(() => titlesOf(listCard(page, 'Haushalt'))).toEqual(shown)
+})
+
+test('shows the place in the target list while dragging and drops it there', async ({ page }) => {
+  await page.goto('/')
+  const arbeit = listCard(page, 'Arbeit')
+  const haushalt = listCard(page, 'Haushalt')
+  await expect(haushalt).toBeVisible()
+
+  const shown = await dragAndCapture(page, entryOf(arbeit, 'Termin planen').getByTestId('entry-handle'), entryOf(haushalt, 'Wäsche waschen'), haushalt)
+
+  expect(shown.indexOf('Termin planen')).toBeGreaterThan(0)
+  expect(shown.indexOf('Termin planen')).toBeLessThan(3)
+  await expect.poll(() => titlesOf(haushalt)).toEqual(shown)
+  await page.reload()
+  await expect.poll(() => titlesOf(listCard(page, 'Haushalt'))).toEqual(shown)
+})
+
+test('moves an entry down inside its list to the place shown while dragging', async ({ page }) => {
+  await page.goto('/')
+  const einkauf = listCard(page, 'Einkauf')
+  await expect(einkauf).toBeVisible()
+
+  const shown = await dragAndCapture(page, entryOf(einkauf, 'Milch').getByTestId('entry-handle'), entryOf(einkauf, 'Brot'), einkauf)
+
+  expect(shown).toEqual(['Brot', 'Milch', 'Äpfel'])
+  await expect.poll(() => titlesOf(einkauf)).toEqual(shown)
+  await page.reload()
+  await expect.poll(() => titlesOf(listCard(page, 'Einkauf'))).toEqual(shown)
 })
 
 test('drags an entry into an empty list', async ({ page }) => {

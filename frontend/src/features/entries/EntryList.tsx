@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { listDroppableId } from './EntriesDndProvider'
+import { listDroppableId, useDragPreview } from './EntriesDndProvider'
 import { useCreateEntry, useEntries } from './entriesApi'
 import { errorKey } from './errorKey'
 import { EntryItem } from './EntryItem'
@@ -15,6 +15,7 @@ export function EntryList({ listId }: { listId: string }) {
   const entries = useEntries()
   const createEntry = useCreateEntry()
   const { openOnly } = useOpenOnly()
+  const preview = useDragPreview()
   const [title, setTitle] = useState('')
   const inputId = `new-entry-${listId}`
   const { setNodeRef, isOver } = useDroppable({ id: listDroppableId(listId), data: { type: 'list', listId } })
@@ -24,7 +25,7 @@ export function EntryList({ listId }: { listId: string }) {
     createEntry.mutate({ listId, title }, { onSuccess: () => setTitle('') })
   }
 
-  const mine = entries.data?.filter((entry) => entry.listId === listId) ?? []
+  const mine = (preview ?? entries.data)?.filter((entry) => entry.listId === listId) ?? []
   const visible = openOnly ? mine.filter((entry) => !entry.done) : mine
 
   return (

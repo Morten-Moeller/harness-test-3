@@ -2,39 +2,50 @@ import { arrayMove } from '@dnd-kit/sortable'
 
 export type OrderedEntry = { id: string; listId: string }
 
-export type DropTarget = { type: 'entry'; id: string } | { type: 'list'; id: string }
-
 export type EntryOrder = { listId: string; entryIds: string[] }
 
-export function computeOrder(entries: OrderedEntry[], activeId: string, over: DropTarget): EntryOrder | null {
+export function idsOfList(entries: OrderedEntry[], listId: string): string[] {
+  return entries.filter((entry) => entry.listId === listId).map((entry) => entry.id)
+}
+
+export function moveToList<T extends OrderedEntry>(entries: T[], activeId: string, listId: string, beforeId: string | null): T[] {
   const active = entries.find((entry) => entry.id === activeId)
+  if (active === undefined || active.listId === listId) {
+    return entries
+  }
+  const rest = entries.filter((entry) => entry.id !== activeId)
+  const moved = { ...active, listId }
+  const beforeIndex = beforeId === null ? -1 : rest.findIndex((entry) => entry.id === beforeId)
+  if (beforeIndex >= 0) {
+    return [...rest.slice(0, beforeIndex), moved, ...rest.slice(beforeIndex)]
+  }
+  let lastIndex = -1
+  rest.forEach((entry, index) => {
+    if (entry.listId === listId) {
+      lastIndex = index
+    }
+  })
+  return lastIndex >= 0 ? [...rest.slice(0, lastIndex + 1), moved, ...rest.slice(lastIndex + 1)] : [...rest, moved]
+}
+
+export function finalOrder(
+  original: OrderedEntry[],
+  preview: OrderedEntry[],
+  activeId: string,
+  overId: string | null,
+): EntryOrder | null {
+  const active = preview.find((entry) => entry.id === activeId)
   if (active === undefined) {
     return null
   }
-  const overEntry = over.type === 'entry' ? entries.find((entry) => entry.id === over.id) : undefined
-  if (over.type === 'entry' && overEntry === undefined) {
-    return null
+  const listId = active.listId
+  let ids = idsOfList(preview, listId)
+  if (overId !== null && overId !== activeId && ids.includes(overId)) {
+    ids = arrayMove(ids, ids.indexOf(activeId), ids.indexOf(overId))
   }
-  const listId = over.type === 'list' ? over.id : (overEntry as OrderedEntry).listId
-  const current = entries.filter((entry) => entry.listId === listId).map((entry) => entry.id)
-  const sameList = active.listId === listId
-
-  let next: string[]
-  if (over.type === 'list') {
-    next = sameList ? [...current.filter((id) => id !== activeId), activeId] : [...current, activeId]
-  } else if (over.id === activeId) {
-    return null
-  } else if (sameList) {
-    next = arrayMove(current, current.indexOf(activeId), current.indexOf(over.id))
-  } else {
-    next = [...current]
-    next.splice(current.indexOf(over.id), 0, activeId)
-  }
-
-  if (sameList && next.every((id, index) => id === current[index])) {
-    return null
-  }
-  return { listId, entryIds: next }
+  const before = original.find((entry) => entry.id === activeId)
+  const unchanged = before?.listId === listId && idsOfList(original, listId).every((id, index) => id === ids[index])
+  return unchanged ? null : { listId, entryIds: ids }
 }
 
 export function applyOrder<T extends OrderedEntry & { position: number }>(entries: T[], order: EntryOrder): T[] {
