@@ -1,0 +1,18 @@
+{
+  "cancel": "Abbrechen",
+  "delete": "Löschen",
+  "edit": "Bearbeiten",
+  "editTitle": "Titel des Eintrags",
+  "empty": "Keine Einträge.",
+  "errors": {
+    "notFound": "Nicht gefunden. Bitte Seite neu laden.",
+    "unknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "validationFailed": "Bitte einen Titel mit 1 bis 200 Zeichen eingeben."
+  },
+  "form": {
+    "submit": "Hinzufügen",
+    "titleLabel": "Neuer Eintrag"
+  },
+  "loading": "Lädt …",
+  "save": "Speichern"
+}

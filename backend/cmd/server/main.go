@@ -11,11 +11,21 @@ import (
 	"syscall"
 	"time"
 
+	"todo/internal/entries"
 	"todo/internal/lists"
 	"todo/internal/platform/config"
 	"todo/internal/platform/db"
 	"todo/internal/platform/server"
 )
+
+type listsAPI = lists.Handler
+
+type entriesAPI = entries.Handler
+
+type handlers struct {
+	*listsAPI
+	*entriesAPI
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -45,7 +55,7 @@ func run() error {
 
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           server.New(logger, lists.New(pool)),
+		Handler:           server.New(logger, handlers{lists.New(pool), entries.New(pool)}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,

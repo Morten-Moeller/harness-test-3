@@ -15,22 +15,24 @@ Keine fremden Systeme. Keine Anmeldung (ADR 0003).
 |---|---|---|---|
 | `frontend` | React 19, Vite, nginx im Image | Bildschirme, Query-Cache, i18n; leitet `/api` an das Backend weiter | `backend` |
 | `backend` | Go, `net/http`, pgx | API nach dem Contract, Validierung, Migrationen beim Start, Logs mit Request-Id | `db` |
-| `db` | PostgreSQL 17 | Listen und Einträge | – |
+| `db` | PostgreSQL 17 | Tabellen `lists` und `entries` (Fremdschlüssel mit `ON DELETE CASCADE`, ADR 0005) | – |
 
 Alle drei starten mit `docker compose up` (ADR 0004).
 
 ## Modulgrenzen
 
-- Backend: ein Paket je Feature unter `backend/internal/<feature>/` (`lists`, ab 0002
-  `entries`), das seine Endpunkte und seine Queries hält. Plattformcode unter
-  `backend/internal/platform/` (`config`, `db`, `problem`, `requestlog`, `server`, `testdb`)
-  kennt keine Fachbegriffe. Generiert: `backend/internal/api/` (Contract) und
+- Backend: ein Paket je Feature unter `backend/internal/<feature>/` (`lists`, `entries`), das
+  seine Endpunkte und seine Queries hält; `cmd/server` setzt die Feature-Handler zum
+  generierten `api.ServerInterface` zusammen. Plattformcode unter `backend/internal/platform/`
+  (`config`, `db`, `httpjson`, `problem`, `requestlog`, `server`, `testdb`, `validate`) kennt
+  keine Fachbegriffe. Generiert: `backend/internal/api/` (Contract) und
   `backend/internal/store/` (sqlc). Features nutzen `platform`, `api` und `store`; `platform`
   nutzt kein Feature (A1.6).
-- Frontend: ein Ordner je Feature unter `frontend/src/features/<feature>/` mit Seite, Queries
-  und Sprachdatei (`locales/de.json` als i18next-Namespace). `frontend/src/app/` verdrahtet
-  Provider und Konfiguration, `frontend/src/api/` den generierten Client. Features importieren
-  aus `api` und `app`, nie aus einem anderen Feature.
+- Frontend: ein Ordner je Feature unter `frontend/src/features/<feature>/` (`lists`,
+  `entries`) mit Seite, Queries und Sprachdatei (`locales/de.json` als i18next-Namespace).
+  `frontend/src/app/` verdrahtet Provider und Konfiguration und verbindet die Features
+  (`ListsPage` bekommt `EntryList` als Render-Funktion), `frontend/src/api/` den generierten
+  Client. Features importieren aus `api` und `app`, nie aus einem anderen Feature.
 - Contract first: ein Endpunkt steht in `contracts/api/openapi.yaml`, bevor es Code gibt;
   `make generate` erzeugt beide Seiten, `make drift` prüft sie.
 

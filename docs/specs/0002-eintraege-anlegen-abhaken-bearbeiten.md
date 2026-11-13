@@ -1,7 +1,7 @@
 ---
 id: "0002"
 title: Einträge anlegen, abhaken, bearbeiten und löschen
-status: approved
+status: Review
 risk: high
 adrs: ["0005"]
 owner: Morten Möller
