@@ -1,6 +1,9 @@
+import { useDroppable } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { listDroppableId } from './EntriesDndProvider'
 import { useCreateEntry, useEntries } from './entriesApi'
 import { errorKey } from './errorKey'
 import { EntryItem } from './EntryItem'
@@ -14,6 +17,7 @@ export function EntryList({ listId }: { listId: string }) {
   const { openOnly } = useOpenOnly()
   const [title, setTitle] = useState('')
   const inputId = `new-entry-${listId}`
+  const { setNodeRef, isOver } = useDroppable({ id: listDroppableId(listId), data: { type: 'list', listId } })
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -24,7 +28,7 @@ export function EntryList({ listId }: { listId: string }) {
   const visible = openOnly ? mine.filter((entry) => !entry.done) : mine
 
   return (
-    <section className={styles.section} data-testid="entry-list">
+    <section ref={setNodeRef} className={isOver ? `${styles.section} ${styles.over}` : styles.section} data-testid="entry-list">
       {entries.isPending && <p className={styles.note}>{t('loading')}</p>}
       {entries.isError && (
         <p className={styles.error} role="alert" data-testid="entries-error">
@@ -41,11 +45,13 @@ export function EntryList({ listId }: { listId: string }) {
             {t('emptyOpen')}
           </p>
         ) : (
-          <ul className={styles.list} data-testid="entries">
-            {visible.map((entry) => (
-              <EntryItem key={entry.id} entry={entry} />
-            ))}
-          </ul>
+          <SortableContext items={visible.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
+            <ul className={styles.list} data-testid="entries">
+              {visible.map((entry) => (
+                <EntryItem key={entry.id} entry={entry} />
+              ))}
+            </ul>
+          </SortableContext>
         ))}
       <form className={styles.form} onSubmit={onSubmit} data-testid="entry-form" noValidate>
         <label className={styles.label} htmlFor={inputId}>

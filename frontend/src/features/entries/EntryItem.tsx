@@ -1,3 +1,5 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -12,6 +14,11 @@ export function EntryItem({ entry }: { entry: Entry }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(entry.title)
   const draftInput = useRef<HTMLInputElement>(null)
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: entry.id,
+    data: { type: 'entry', listId: entry.listId },
+  })
+  const sortableStyle = { transform: CSS.Transform.toString(transform), transition }
 
   useEffect(() => {
     if (editing) {
@@ -31,8 +38,20 @@ export function EntryItem({ entry }: { entry: Entry }) {
 
   const busy = updateEntry.isPending || deleteEntry.isPending
 
+  const classes = [styles.item, entry.done ? styles.done : '', isDragging ? styles.dragging : ''].filter(Boolean).join(' ')
+
   return (
-    <li className={entry.done ? `${styles.item} ${styles.done}` : styles.item} data-testid="entry-item">
+    <li ref={setNodeRef} style={sortableStyle} className={classes} data-testid="entry-item">
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        className={styles.handle}
+        aria-label={t('handle')}
+        disabled={busy || editing}
+        data-testid="entry-handle"
+        {...attributes}
+        {...listeners}
+      />
       {editing ? (
         <form className={styles.editForm} onSubmit={onSave} noValidate data-testid="entry-edit-form">
           <input

@@ -101,6 +101,34 @@ func (q *Queries) ListEntries(ctx context.Context) ([]Entry, error) {
 	return items, nil
 }
 
+const moveEntry = `-- name: MoveEntry :one
+UPDATE entries
+SET list_id = $1,
+    position = $2,
+    updated_at = $3
+WHERE id = $4
+RETURNING id
+`
+
+type MoveEntryParams struct {
+	ListID   uuid.UUID
+	Position int32
+	Now      time.Time
+	ID       uuid.UUID
+}
+
+func (q *Queries) MoveEntry(ctx context.Context, arg MoveEntryParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, moveEntry,
+		arg.ListID,
+		arg.Position,
+		arg.Now,
+		arg.ID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const updateEntry = `-- name: UpdateEntry :one
 UPDATE entries
 SET title = COALESCE($1, title),

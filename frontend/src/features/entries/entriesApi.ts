@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '../../api/client'
 import { ApiError, parseProblem } from '../../api/problem'
 import type { components } from '../../api/schema'
+import { applyOrder, type EntryOrder } from './order'
 
 export type Entry = components['schemas']['Entry']
 
@@ -73,5 +74,35 @@ export function useDeleteEntry() {
       }
     },
     onSuccess: invalidate,
+  })
+}
+
+export function useReorderEntries() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ listId, entryIds }: EntryOrder) => {
+      const { error, response } = await api.PUT('/api/lists/{listId}/entries/order', {
+        params: { path: { listId } },
+        body: { entryIds },
+      })
+      if (error !== undefined || !response.ok) {
+        throw new ApiError(parseProblem(error), response.status)
+      }
+    },
+    onMutate: async (order) => {
+      await queryClient.cancelQueries({ queryKey: entriesKey })
+      const previous = queryClient.getQueryData<Entry[]>(entriesKey)
+      if (previous !== undefined) {
+        queryClient.setQueryData<Entry[]>(entriesKey, applyOrder(previous, order))
+      }
+      return { previous }
+    },
+    onError: (_error, _order, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(entriesKey, context.previous)
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: entriesKey }),
   })
 }

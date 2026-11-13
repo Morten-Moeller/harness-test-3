@@ -76,6 +76,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lists/{listId}/entries/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the order of the entries of a list; an entry of another list moves into this list */
+        put: operations["reorderEntries"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/entries/{entryId}": {
         parameters: {
             query?: never;
@@ -144,6 +161,10 @@ export interface components {
         UpdateEntry: {
             title?: string;
             done?: boolean;
+        };
+        /** @description The complete order of the entries of a list; position becomes index plus one */
+        EntryOrder: {
+            entryIds: string[];
         };
         Created: {
             /** Format: uuid */
@@ -392,6 +413,57 @@ export interface operations {
                 };
             };
             /** @description The list does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reorderEntries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                listId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryOrder"];
+            };
+        };
+        responses: {
+            /** @description The order was set */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The list or an entry does not exist; nothing changed */
             404: {
                 headers: {
                     [name: string]: unknown;
