@@ -1,39 +1,51 @@
 ---
-sources: []
+sources: [frontend/src/**, frontend/vite.config.ts, frontend/eslint.config.js, frontend/i18next.config.ts, frontend/package.json]
 ---
 
 # Frontend rules
 
-<!-- TODO: fill at project start. Delete sections that do not apply. -->
-
 ## Stack
 
-- Framework and version: TODO
-- Package manager and Node version: TODO
-- Build tool: TODO
+- React 19 with TypeScript, strict mode. Build and dev server: Vite (`frontend/vite.config.ts`).
+- Package manager pnpm (version in `frontend/Dockerfile`), Node version in `frontend/.nvmrc`.
+- Server state: TanStack Query. i18n: i18next with react-i18next. Drag and drop: dnd-kit
+  (ADR 0001).
 
 ## Structure
 
-- Where a feature lives (folder per feature, per layer, ...): TODO
-- Shared code goes to: TODO
-- Import boundaries (what may import what): TODO
+- One folder per feature under `frontend/src/features/<feature>/`: the page, the queries and
+  mutations (`<feature>Api.ts`), the styles (`*.module.css`) and the language file
+  (`locales/de.json`, the i18next namespace `<feature>`).
+- `frontend/src/app/` wires providers, runtime config and i18n. `frontend/src/api/` holds the
+  generated schema (`schema.d.ts`), the client and the problem details parser.
+- Imports: a feature imports from `api` and `app`, never from another feature. `app` and `api`
+  import no feature by name (`app/i18n.ts` loads the language files through a glob).
 
 ## State and data
 
-- Server state: TODO
-- Client state: TODO
-- API client and generated types (see `contracts/README.md`): TODO
+- Server data lives in the query cache (A7.1). A mutation invalidates the queries it changes
+  (A7.2); no manual reload.
+- Client state is local to its component (`useState`). No global store.
+- API calls go through `useApi()` (openapi-fetch with the types from `schema.d.ts`). A failed
+  call throws `ApiError`; the UI branches on `errorCodeOf(error)`, never on message text (A2.3).
+- Runtime configuration comes from `/config.json` at start (`app/config.ts`, A6.2).
 
 ## UI
 
-- Component library and design tokens: TODO. Token values are the design team's decision; report,
-  do not change, unless a design specification names the value.
-- Styling approach: TODO
-- i18n: every user-facing string goes through TODO. No hard-coded text.
-- Accessibility: keyboard reachable, labelled controls, contrast checked. Findings on colour values
-  are reported, not fixed.
+- No component library. Colors, spacing, radii and type come from the tokens in
+  `frontend/src/styles/tokens.css`; a component uses `var(--token)` only, never a literal value
+  (A7.4). Token values are the design decision of the person; report, do not change.
+- Styling: CSS modules next to the component.
+- i18n: every user-facing string goes through `t('key')` of the feature namespace; the language
+  file is `locales/de.json` of the feature (geprüft: eslint `i18next/no-literal-string` for JSX
+  text, `i18next-cli extract --ci` for missing and unused keys).
+- Accessibility: every control has a label or an accessible name and works with the keyboard;
+  visible focus through `--color-focus` (geprüft: eslint `jsx-a11y`).
+- Elements that end-to-end tests drive carry `data-testid` (A7.6).
 
 ## Quality
 
-- `make typecheck`, `make lint` run: TODO
-- Bundle budget: TODO
+- `make typecheck` runs `tsc --noEmit`; `make lint` runs eslint (typescript-eslint, react-hooks,
+  jsx-a11y, i18next) and `i18next-cli extract --ci`; `make test` runs Vitest for
+  `src/**/*.test.ts`.
+- Bundle budget: none yet.

@@ -1,0 +1,115 @@
+openapi: 3.0.3
+info:
+  title: Todo API
+  description: Lists and entries of the todo application. Source of the generated types in backend/internal/api and frontend/src/api.
+  version: "1"
+servers:
+  - url: /
+paths:
+  /api/lists:
+    get:
+      operationId: listLists
+      summary: Lists in position order
+      responses:
+        "200":
+          description: The lists, ordered by position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPage"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: createList
+      summary: Create a list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateList"
+      responses:
+        "201":
+          description: The list was created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Created"
+        "400":
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  schemas:
+    List:
+      type: object
+      required: [id, title, position, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        position:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ListPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/List"
+    CreateList:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+    Created:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+    Problem:
+      type: object
+      description: RFC 9457 problem details with a stable errorCode
+      required: [type, title, status, errorCode]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+        errorCode:
+          type: string
+          enum: [VALIDATION_FAILED, NOT_FOUND, INTERNAL]

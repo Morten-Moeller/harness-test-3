@@ -1,0 +1,8 @@
+minimumReleaseAge: 10080
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+overrides:
+  "minimatch@10": "^11.0.1"

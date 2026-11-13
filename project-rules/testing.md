@@ -1,57 +1,66 @@
 ---
-sources: []
+sources: [backend/internal/platform/testdb/**, backend/cmd/seed/**, frontend/playwright.config.ts, frontend/e2e/**, frontend/vite.config.ts]
 ---
 
 # Testing rules
 
-<!-- TODO: fill at project start. The general rules are in harness/testing.md (T1 to T7); this
-     file names the tools and commands of the project and its additions. A rule of
-     harness/testing.md that does not fit is replaced by an ADR that names its number.
-     sources: the globs of the test setup (for example playwright.config.ts, the test data tool). -->
+The general rules are in `harness/testing.md` (T1 to T7). This file names the tools and
+commands of the project.
 
 ## Levels
 
 | Level | Tool | Runs in | Scope (harness/testing.md T1) |
 |---|---|---|---|
-| unit | TODO | `make test` | pure calculations, table-driven |
-| integration | TODO | `make test` | one feature through its public interface, real database engine: TODO (container image) |
-| end-to-end | TODO or none | `make e2e`, in CI only with `e2e_in_ci: true` | user flows in the browser |
+| unit | Go `testing` (table-driven), Vitest for `frontend/src/**/*.test.ts` | `make test` | pure calculations and mechanisms: config loading, problem details parsing |
+| integration | Go `testing` with `net/http/httptest` against PostgreSQL in testcontainers-go (`postgres:17`) | `make test` | one feature through its HTTP routes; `backend/internal/platform/testdb` starts the container and applies the migrations |
+| end-to-end | Playwright (`frontend/e2e/*.spec.ts`), Chromium | `make e2e`, locally only (`e2e_in_ci: false`) | user flows in the browser against backend and database |
 
 ## Additions
 
-- File layout of tests: TODO (for example specs next to the file, backend tests mirror the package).
-- Builders or factories: TODO.
-- Coverage floor, if any: TODO.
+- Backend tests live next to the package (`handler_test.go`, package `<feature>_test`). One
+  container per test package through `TestMain`; each test creates its own rows with unique
+  titles and asserts only those (T3.1, T3.2).
+- Frontend component flows are tested end-to-end, not with mocked API responses (T1.4).
+- Docker is required for `make test`; without it the Go tests fail within seconds with the hint
+  to start Docker (T4.3). testcontainers-go takes free ports, so two checkouts test at the same
+  time (T3.6).
+- Coverage floor: none.
 
 ## Areas
 
-Which tests belong to which source paths. `implement` and `/verify` run the tests of the areas a
-change touches.
-
 | Source path | Unit and integration | End-to-end |
 |---|---|---|
-| TODO `src/orders/` | TODO `tests/orders/` | TODO `e2e/orders.spec.ts` |
+| `backend/internal/lists/` | `backend/internal/lists/handler_test.go` | `frontend/e2e/lists.spec.ts` |
+| `backend/internal/platform/` | `backend/internal/platform/config/config_test.go` | – |
+| `frontend/src/api/` | `frontend/src/api/problem.test.ts` | – |
+| `frontend/src/features/lists/` | – | `frontend/e2e/lists.spec.ts` |
 
 ## End-to-end
 
-- Start: TODO. Either the tests start the application themselves (Playwright `webServer`, a
-  compose file); then `e2e_in_ci: true` is possible. Or the application must run before
-  (`make dev`); then `make e2e` runs locally only.
-- One spec: TODO (for example `pnpm exec playwright test e2e/orders.spec.ts`).
-- Session setup (T6.2): TODO (setup project and storage state file).
-- Environment check (T4.3): TODO.
+- Start: `make e2e` starts the database with `docker compose up -d --wait db`; Playwright's
+  `webServer` starts the backend (`go run ./cmd/server` on `127.0.0.1:8090`) and Vite on
+  `localhost:5173` and stops both afterwards. The application runs under
+  `harness/scripts/app-lock.sh`.
+- One spec: `cd frontend && pnpm exec playwright test e2e/lists.spec.ts`.
+- Session setup (T6.2): none, there is no login.
+- Environment check (T4.3): `frontend/e2e/global-setup.ts` runs `make seed-doctor` and fails
+  with the fix from its JSON, then `make seed STATE=empty` (T6.3).
+- Browsers: `pnpm exec playwright install chromium` once per machine (part of `make install`).
 
 ## Test data
 
-- Command: TODO, for example `make seed STATE=<name>` or a project CLI. It needs no knowledge of
-  tables and prints one JSON document per call (`ok`, `data`, `error.code`).
-- Environment check: TODO (`make seed-doctor`): which services must run, with the fix for each.
-- Named states: TODO (for example `empty`, `with-items`, `checked-out`).
+- Command: `make seed STATE=<name>` runs `backend/cmd/seed`, applies pending migrations and
+  prints one JSON document: `{"ok": true, "data": {...}}` or
+  `{"ok": false, "error": {"code", "message", "fix"}}`.
+- Environment check: `make seed-doctor`. Error codes: `CONFIG_MISSING` (set `DATABASE_URL`),
+  `DB_UNREACHABLE` (`docker compose up -d --wait db`), `MIGRATION_FAILED`.
+- Named states: `empty` (no lists), `with-lists` (the lists `Einkauf`, `Arbeit`, `Haushalt`).
 - Never write rows by hand, never call internal endpoints, never click through the application to
   make data that the command makes. A state the command lacks goes into a spec; the command is
   extended there.
 
 ## What `/verify` runs
 
-- Automated: `make check` and the tests of the touched areas (table Areas).
-- Browser checks: which URL, which login, which test data state: TODO.
+- Automated: `make check`, `make e2e` and the tests of the touched areas (table Areas).
+- Browser checks: `make dev` and `http://localhost:5173`, or `docker compose up --build` and
+  `http://localhost:8080`; no login; test data with `make seed STATE=with-lists`.
