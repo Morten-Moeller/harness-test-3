@@ -1,6 +1,6 @@
 # Roadmap: Todo-App mit Listen
 
-Stand: 2026-11-13
+Stand: 2026-11-13 (Welle 4 geplant)
 
 ## Ziel
 
@@ -44,6 +44,8 @@ Frontend auf dem eigenen Rechner, und jede Welle liefert einen Bildschirm, den d
 | Persistenz | PostgreSQL 17, Migrationen mit goose beim Start des Backends, Queries mit sqlc | `docs/adr/0002-postgresql-als-datenbank.md` |
 | Authentifizierung | Eine Person, keine Anmeldung, keine Besitzerprüfung | `docs/adr/0003-eine-person-ohne-anmeldung.md` |
 | Betrieb | Lokal mit Docker Compose (Datenbank, Backend, Frontend), kein Deployment | `docs/adr/0004-betrieb-lokal-mit-docker-compose.md` |
+| Datenmodell Einträge | Tabelle `entries` mit Listenbezug, ein Endpunkt für alle Einträge | `docs/adr/0005-eintraege-als-eigene-tabelle.md` |
+| Reihenfolge | Drag and Drop meldet die vollständige Id-Liste je Container; eine Transaktion setzt `position` | `docs/adr/0006-reihenfolge-als-id-liste.md` |
 
 ## Specs
 
@@ -58,8 +60,8 @@ Frontend auf dem eigenen Rechner, und jede Welle liefert einen Bildschirm, den d
 | 0002 | Einträge anlegen, abhaken, bearbeiten und löschen | 2 | 0001 | `contracts/`, `backend/db/migrations/`, `backend/internal/entries/`, `frontend/src/features/entries/` | high |
 | 0003 | Nur offene Einträge anzeigen | 3 | 0002 | `frontend/src/features/entries/` | medium |
 | 0004 | Listen umbenennen und löschen | 3 | 0001 | `contracts/`, `backend/internal/lists/`, `frontend/src/features/lists/` | high |
-| 0005 | Einträge per Drag and Drop verschieben, auch zwischen Listen | 4 | 0002, 0004 | `contracts/`, `backend/internal/entries/`, `frontend/src/features/entries/`, `frontend/src/features/board/` | high |
-| 0006 | Listen per Drag and Drop anordnen | 5 | 0005 | `contracts/`, `backend/internal/lists/`, `frontend/src/features/lists/`, `frontend/src/features/board/` | high |
+| 0005 | Einträge per Drag and Drop verschieben, auch zwischen Listen | 4 | 0002, 0004 | `contracts/`, `backend/internal/entries/`, `frontend/src/features/entries/`, `frontend/package.json` | high |
+| 0006 | Listen per Drag and Drop anordnen | 5 | 0005 | `contracts/`, `backend/internal/lists/`, `frontend/src/features/lists/` | high |
 
 Jede Spec mit einem Endpunkt ändert `contracts/api/openapi.yaml` und die generierten Dateien,
 darum liegt je Welle höchstens eine davon. Die Spalten `position` an Listen und Einträgen
