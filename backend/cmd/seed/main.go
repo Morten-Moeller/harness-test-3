@@ -86,8 +86,21 @@ func clear(ctx context.Context, queries *store.Queries) error {
 	return queries.DeleteAllLists(ctx)
 }
 
+func inTransaction(ctx context.Context, pool *pgxpool.Pool, work func(queries *store.Queries) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	if err := work(store.New(tx)); err != nil {
+		_ = tx.Rollback(ctx)
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func empty(ctx context.Context, pool *pgxpool.Pool) result {
-	if err := clear(ctx, store.New(pool)); err != nil {
+	err := inTransaction(ctx, pool, func(queries *store.Queries) error { return clear(ctx, queries) })
+	if err != nil {
 		return fail("DB_ERROR", err.Error(), "")
 	}
 	return result{Ok: true, Data: map[string]any{"state": "empty", "lists": []any{}}}
@@ -106,34 +119,39 @@ type seededList struct {
 }
 
 func withLists(ctx context.Context, pool *pgxpool.Pool, withEntries bool) result {
-	queries := store.New(pool)
-	if err := clear(ctx, queries); err != nil {
-		return fail("DB_ERROR", err.Error(), "")
-	}
 	now := time.Now().UTC()
 	created := make([]seededList, 0, len(titles))
-	for _, title := range titles {
-		id, err := queries.CreateList(ctx, store.CreateListParams{ID: uuid.Must(uuid.NewV7()), Title: title, Now: now})
-		if err != nil {
-			return fail("DB_ERROR", err.Error(), "")
+	err := inTransaction(ctx, pool, func(queries *store.Queries) error {
+		if err := clear(ctx, queries); err != nil {
+			return err
 		}
-		list := seededList{ID: id.String(), Title: title, Entries: []seededEntry{}}
-		if withEntries {
-			for i, entryTitle := range entryTitles[title] {
-				entryID, err := queries.CreateEntry(ctx, store.CreateEntryParams{ID: uuid.Must(uuid.NewV7()), ListID: id, Title: entryTitle, Now: now})
-				if err != nil {
-					return fail("DB_ERROR", err.Error(), "")
-				}
-				done := i == 0
-				if done {
-					if _, err := queries.UpdateEntry(ctx, store.UpdateEntryParams{ID: entryID, Done: &done, Now: now}); err != nil {
-						return fail("DB_ERROR", err.Error(), "")
-					}
-				}
-				list.Entries = append(list.Entries, seededEntry{ID: entryID.String(), Title: entryTitle, Done: done})
+		for _, title := range titles {
+			id, err := queries.CreateList(ctx, store.CreateListParams{ID: uuid.Must(uuid.NewV7()), Title: title, Now: now})
+			if err != nil {
+				return err
 			}
+			list := seededList{ID: id.String(), Title: title, Entries: []seededEntry{}}
+			if withEntries {
+				for i, entryTitle := range entryTitles[title] {
+					entryID, err := queries.CreateEntry(ctx, store.CreateEntryParams{ID: uuid.Must(uuid.NewV7()), ListID: id, Title: entryTitle, Now: now})
+					if err != nil {
+						return err
+					}
+					done := i == 0
+					if done {
+						if _, err := queries.UpdateEntry(ctx, store.UpdateEntryParams{ID: entryID, Done: &done, Now: now}); err != nil {
+							return err
+						}
+					}
+					list.Entries = append(list.Entries, seededEntry{ID: entryID.String(), Title: entryTitle, Done: done})
+				}
+			}
+			created = append(created, list)
 		}
-		created = append(created, list)
+		return nil
+	})
+	if err != nil {
+		return fail("DB_ERROR", err.Error(), "")
 	}
 	state := "with-lists"
 	if withEntries {

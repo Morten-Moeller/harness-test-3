@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { type Entry, useDeleteEntry, useUpdateEntry } from './entriesApi'
-import { errorKey } from './EntryList'
+import { errorKey } from './errorKey'
 import styles from './EntryList.module.css'
 
 export function EntryItem({ entry }: { entry: Entry }) {

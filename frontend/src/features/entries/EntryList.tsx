@@ -1,21 +1,10 @@
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { errorCodeOf } from '../../api/problem'
 import { useCreateEntry, useEntries } from './entriesApi'
+import { errorKey } from './errorKey'
 import { EntryItem } from './EntryItem'
 import styles from './EntryList.module.css'
-
-export function errorKey(error: unknown): 'errors.validationFailed' | 'errors.notFound' | 'errors.unknown' {
-  switch (errorCodeOf(error)) {
-    case 'VALIDATION_FAILED':
-      return 'errors.validationFailed'
-    case 'NOT_FOUND':
-      return 'errors.notFound'
-    default:
-      return 'errors.unknown'
-  }
-}
 
 export function EntryList({ listId }: { listId: string }) {
   const { t } = useTranslation('entries')

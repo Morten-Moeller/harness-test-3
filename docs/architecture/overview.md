@@ -41,6 +41,10 @@ Alle drei starten mit `docker compose up` (ADR 0004).
 - Authentifizierung und Autorisierung: keine, eine Person (ADR 0003).
 - Logging: `log/slog` als JSON, ein Logger je Request mit `requestId`
   (`backend/internal/platform/requestlog`).
+- Listen-Endpunkte (`GET /api/lists`, `GET /api/entries`): eine Konvention (A2.6): das
+  vollständige Ergebnis als `{ "items": [...] }`, sortiert nach `position`, ohne Paging-, Sortier-
+  oder Filterparameter. Die Datenmenge einer Person bleibt klein (ADR 0003); ein Endpunkt, der
+  mehr braucht, führt die Parameter für alle Listen-Endpunkte zugleich ein.
 - Fehler: RFC 9457 Problem Details mit `errorCode` (`backend/internal/platform/problem`); das
   Frontend verzweigt in `frontend/src/api/problem.ts` nach `errorCode`.
 - Konfiguration: Umgebungsvariablen `DATABASE_URL`, `HTTP_ADDR`, `LOG_LEVEL`, geprüft beim Start

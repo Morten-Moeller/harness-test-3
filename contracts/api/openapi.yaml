@@ -1,7 +1,11 @@
 openapi: 3.0.3
 info:
   title: Todo API
-  description: Lists and entries of the todo application. Source of the generated types in backend/internal/api and frontend/src/api.
+  description: >-
+    Lists and entries of the todo application. Source of the generated types in
+    backend/internal/api and frontend/src/api. Convention of every list endpoint (A2.6): the
+    complete result as { items: [...] } ordered by position, without paging, sorting or filter
+    parameters; the data of one person stays small (ADR 0003).
   version: "1"
 servers:
   - url: /
