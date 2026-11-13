@@ -1,7 +1,10 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { errorKey } from './errorKey'
+import { listDragType } from './ListsDnd'
 import { type List, useDeleteList, useUpdateList } from './listsApi'
 import styles from './ListsPage.module.css'
 
@@ -49,9 +52,31 @@ export function ListItem({ list, children }: { list: List; children?: ReactNode 
   }
 
   const busy = updateList.isPending || deleteList.isPending
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: list.id,
+    data: { type: listDragType, listId: list.id },
+  })
+  const sortableStyle = { transform: CSS.Translate.toString(transform), transition }
+  const handle = (
+    <button
+      type="button"
+      ref={setActivatorNodeRef}
+      className={styles.handle}
+      aria-label={t('handle')}
+      disabled={busy || mode !== 'view'}
+      data-testid="list-handle"
+      {...attributes}
+      {...listeners}
+    />
+  )
 
   return (
-    <li className={styles.item} data-testid="list-item">
+    <li
+      ref={setNodeRef}
+      style={sortableStyle}
+      className={isDragging ? `${styles.item} ${styles.dragging}` : styles.item}
+      data-testid="list-item"
+    >
       {mode === 'edit' ? (
         <form className={styles.editForm} onSubmit={onSave} noValidate data-testid="list-edit-form">
           <input
@@ -78,6 +103,7 @@ export function ListItem({ list, children }: { list: List; children?: ReactNode 
         </form>
       ) : (
         <div className={styles.itemHeader}>
+          {handle}
           <h2 className={styles.itemTitle} data-testid="list-title">
             {list.title}
           </h2>

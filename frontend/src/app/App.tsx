@@ -3,12 +3,14 @@ import { useState } from 'react'
 import { I18nextProvider } from 'react-i18next'
 
 import { ApiContext, createApiClient } from '../api/client'
-import { EntriesDndProvider } from '../features/entries/EntriesDndProvider'
+import { useEntriesDnd } from '../features/entries/EntriesDndProvider'
 import { EntryList } from '../features/entries/EntryList'
 import { OpenOnlyProvider } from '../features/entries/openOnly'
 import { OpenOnlyToggle } from '../features/entries/OpenOnlyToggle'
+import { useListsDnd } from '../features/lists/ListsDnd'
 import { ListsPage } from '../features/lists/ListsPage'
 import type { AppConfig } from './config'
+import { DndRoot } from './DndRoot'
 import { createI18n } from './i18n'
 import { createQueryClient } from './queryClient'
 
@@ -22,12 +24,20 @@ export function App({ config }: { config: AppConfig }) {
         <ApiContext.Provider value={api}>
           <OpenOnlyProvider>
             <OpenOnlyToggle />
-            <EntriesDndProvider>
-              <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
-            </EntriesDndProvider>
+            <Board />
           </OpenOnlyProvider>
         </ApiContext.Provider>
       </QueryClientProvider>
     </I18nextProvider>
+  )
+}
+
+function Board() {
+  const listsDnd = useListsDnd()
+  const entriesDnd = useEntriesDnd()
+  return (
+    <DndRoot modules={[listsDnd, entriesDnd]}>
+      <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
+    </DndRoot>
   )
 }

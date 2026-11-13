@@ -34,8 +34,10 @@ sources: [backend/**, contracts/api/openapi.yaml]
 - A change that depends on the current state is one statement with `RETURNING` and a checked
   row count (A4.4). One request is at most one transaction (A3.3).
 - Order of a container (entries of a list, lists): the client sends the complete ordered id list;
-  the handler sets `position = index + 1` for every id in one transaction (`pool.Begin`,
-  `queries.WithTx`), and a missing row rolls back with 404 (ADR 0006).
+  the handler sets `position = index + 1` for every id in one transaction
+  (`db.InTransaction`, `queries.WithTx`), in id order (`validate.LockOrder`). A missing row rolls
+  back with 404; a count that differs from the number of ids rolls back with 409 `CONFLICT`
+  (ADR 0006, spec 0006).
 - Personal data: none. The one person owns every row (ADR 0003).
 
 ## Errors, logging, configuration

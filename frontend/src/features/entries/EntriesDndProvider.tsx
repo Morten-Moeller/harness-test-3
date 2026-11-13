@@ -2,30 +2,24 @@ import {
   type Announcements,
   closestCenter,
   type CollisionDetection,
-  DndContext,
   type DragEndEvent,
-  DragOverlay,
   type DragOverEvent,
   type DragStartEvent,
   getFirstCollision,
-  KeyboardSensor,
-  PointerSensor,
   pointerWithin,
   rectIntersection,
-  type ScreenReaderInstructions,
-  useSensor,
-  useSensors,
 } from '@dnd-kit/core'
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useQueryClient } from '@tanstack/react-query'
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { errorCodeOf } from '../../api/problem'
+import { type DndModule, dragTypeOf } from '../../app/dndModule'
 import { type Entry, entriesKey, useReorderEntries } from './entriesApi'
 import styles from './EntryList.module.css'
 import { applyOrder, finalOrder, moveToList } from './order'
 
-type DragData = { type: 'entry'; listId: string } | { type: 'list'; listId: string }
+type DragData = { type: string; listId?: string }
 
 const PreviewContext = createContext<Entry[] | null>(null)
 
@@ -42,7 +36,7 @@ export function listDroppableId(listId: string): string {
   return `list:${listId}`
 }
 
-const entryInListUnderPointerRaw: CollisionDetection = (args) => {
+const entryInListUnderPointer: CollisionDetection = (args) => {
   const within = pointerWithin(args)
   const hits = within.length > 0 ? within : rectIntersection(args)
   const firstId = getFirstCollision(hits, 'id')
@@ -61,7 +55,7 @@ const entryInListUnderPointerRaw: CollisionDetection = (args) => {
   return closestCenter({ ...args, droppableContainers: entriesOfList })
 }
 
-export function EntriesDndProvider({ children }: { children: ReactNode }) {
+export function useEntriesDnd(): DndModule {
   const { t } = useTranslation('entries')
   const queryClient = useQueryClient()
   const reorder = useReorderEntries()
@@ -70,10 +64,6 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
   const previewRef = useRef<Entry[] | null>(null)
   const originalRef = useRef<Entry[] | null>(null)
   const movedToListRef = useRef(false)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
 
   const showPreview = (next: Entry[] | null) => {
     previewRef.current = next
@@ -87,11 +77,11 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(frame)
   }, [preview])
 
-  const collisionDetection: CollisionDetection = useCallback((args) => {
-    if (movedToListRef.current && args.active !== null) {
+  const collision: CollisionDetection = useCallback((args) => {
+    if (movedToListRef.current) {
       return [{ id: args.active.id }]
     }
-    return entryInListUnderPointerRaw(args)
+    return entryInListUnderPointer(args)
   }, [])
 
   const announcements: Announcements = useMemo(() => {
@@ -109,7 +99,7 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
       onDragOver: ({ active, over }) =>
         over === null
           ? t('dnd.noTarget', { title: titleOf(active.id) })
-          : t('dnd.movedOver', { title: titleOf(active.id), position: positionOf(over.data.current?.type === 'list' ? active.id : over.id) }),
+          : t('dnd.movedOver', { title: titleOf(active.id), position: positionOf(over.data.current?.type === 'entry' ? over.id : active.id) }),
       onDragEnd: ({ active, over }) =>
         over === null
           ? t('dnd.cancelled', { title: titleOf(active.id) })
@@ -117,8 +107,6 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
       onDragCancel: ({ active }) => t('dnd.cancelled', { title: titleOf(active.id) }),
     }
   }, [t, queryClient])
-
-  const instructions: ScreenReaderInstructions = { draggable: t('dnd.instructions') }
 
   const onDragStart = ({ active }: DragStartEvent) => {
     setActiveId(String(active.id))
@@ -133,7 +121,7 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
       return
     }
     const data = over.data.current as DragData | undefined
-    if (data === undefined) {
+    if (data?.listId === undefined) {
       return
     }
     const activeEntry = current.find((entry) => entry.id === active.id)
@@ -159,7 +147,8 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
       return
     }
     const data = over.data.current as DragData | undefined
-    const overId = data?.type === 'entry' ? String(over.id) : data?.type === 'list' ? lastIdOfList(current, data.listId) : null
+    const overId =
+      data?.type === 'entry' ? String(over.id) : data?.listId !== undefined ? lastIdOfList(current, data.listId) : null
     const order = finalOrder(original, current, String(active.id), overId)
     if (order !== null) {
       queryClient.setQueryData<Entry[]>(entriesKey, applyOrder(current, order))
@@ -169,21 +158,30 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
   }
 
   const activeEntry = preview?.find((entry) => entry.id === activeId) ?? null
+  const errorText = reorder.isError ? t(errorCodeOf(reorder.error) === 'CONFLICT' ? 'errors.conflict' : 'errors.unknown') : null
 
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collisionDetection}
-      accessibility={{ announcements, screenReaderInstructions: instructions }}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-      onDragCancel={finish}
-    >
-      <PreviewContext.Provider value={preview}>{children}</PreviewContext.Provider>
-      <DragOverlay>{activeEntry === null ? null : <ActiveEntryOverlay entry={activeEntry} />}</DragOverlay>
-    </DndContext>
-  )
+  return {
+    type: 'entry',
+    accepts: (data) => dragTypeOf(data) === 'entry' || dragTypeOf(data) === 'list',
+    instructions: t('dnd.instructions'),
+    collision,
+    announcements,
+    onDragStart,
+    onDragOver,
+    onDragEnd,
+    onDragCancel: finish,
+    overlay: activeEntry === null ? null : <ActiveEntryOverlay entry={activeEntry} />,
+    wrap: (children) => (
+      <PreviewContext.Provider value={preview}>
+        {errorText !== null && (
+          <p className={styles.error} role="alert" data-testid="entries-dnd-error">
+            {errorText}
+          </p>
+        )}
+        {children}
+      </PreviewContext.Provider>
+    ),
+  }
 }
 
 function ActiveEntryOverlay({ entry }: { entry: Entry }) {

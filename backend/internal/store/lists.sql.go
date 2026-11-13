@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countLists = `-- name: CountLists :one
+SELECT count(*) FROM lists
+`
+
+func (q *Queries) CountLists(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countLists)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createList = `-- name: CreateList :one
 INSERT INTO lists (id, title, position, created_at, updated_at)
 VALUES (
@@ -89,6 +100,27 @@ func (q *Queries) ListLists(ctx context.Context) ([]List, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const moveList = `-- name: MoveList :one
+UPDATE lists
+SET position = $1,
+    updated_at = $2
+WHERE id = $3
+RETURNING id
+`
+
+type MoveListParams struct {
+	Position int32
+	Now      time.Time
+	ID       uuid.UUID
+}
+
+func (q *Queries) MoveList(ctx context.Context, arg MoveListParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, moveList, arg.Position, arg.Now, arg.ID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateList = `-- name: UpdateList :one

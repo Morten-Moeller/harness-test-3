@@ -55,6 +55,43 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/lists/order:
+    put:
+      operationId: reorderLists
+      summary: Set the order of all lists
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListOrder"
+      responses:
+        "204":
+          description: The order was set
+        "400":
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: A list does not exist; nothing changed
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The order does not contain exactly the current items of the container; nothing changed
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/lists/{listId}:
     parameters:
       - name: listId
@@ -198,6 +235,12 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "404":
           description: The list or an entry does not exist; nothing changed
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The order does not contain exactly the current items of the container; nothing changed
           content:
             application/problem+json:
               schema:
@@ -357,6 +400,18 @@ components:
           maxLength: 200
         done:
           type: boolean
+    ListOrder:
+      type: object
+      description: The complete order of all lists; position becomes index plus one
+      required: [listIds]
+      properties:
+        listIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: string
+            format: uuid
     EntryOrder:
       type: object
       description: The complete order of the entries of a list; position becomes index plus one
@@ -394,4 +449,4 @@ components:
           type: string
         errorCode:
           type: string
-          enum: [VALIDATION_FAILED, NOT_FOUND, INTERNAL]
+          enum: [VALIDATION_FAILED, NOT_FOUND, CONFLICT, INTERNAL]

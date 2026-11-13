@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '../../api/client'
 import { ApiError, parseProblem } from '../../api/problem'
 import type { components } from '../../api/schema'
+import { applyListOrder } from './order'
 
 export type List = components['schemas']['List']
 
@@ -65,5 +66,28 @@ export function useDeleteList() {
       }
     },
     onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
+export type ListReorderVariables = { listIds: string[]; previous: List[] }
+
+export function useReorderLists() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ listIds }: ListReorderVariables) => {
+      const { error, response } = await api.PUT('/api/lists/order', { body: { listIds } })
+      if (error !== undefined || !response.ok) {
+        throw new ApiError(parseProblem(error), response.status)
+      }
+    },
+    onMutate: async ({ listIds, previous }) => {
+      queryClient.setQueryData<List[]>(listsKey, applyListOrder(previous, listIds))
+      await queryClient.cancelQueries({ queryKey: listsKey })
+    },
+    onError: (_error, { previous }) => {
+      queryClient.setQueryData(listsKey, previous)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: listsKey }),
   })
 }

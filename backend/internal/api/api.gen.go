@@ -16,6 +16,7 @@ import (
 
 // Defines values for ProblemErrorCode.
 const (
+	CONFLICT         ProblemErrorCode = "CONFLICT"
 	INTERNAL         ProblemErrorCode = "INTERNAL"
 	NOTFOUND         ProblemErrorCode = "NOT_FOUND"
 	VALIDATIONFAILED ProblemErrorCode = "VALIDATION_FAILED"
@@ -24,6 +25,8 @@ const (
 // Valid indicates whether the value is a known member of the ProblemErrorCode enum.
 func (e ProblemErrorCode) Valid() bool {
 	switch e {
+	case CONFLICT:
+		return true
 	case INTERNAL:
 		return true
 	case NOTFOUND:
@@ -80,6 +83,11 @@ type List struct {
 	UpdatedAt time.Time          `json:"updatedAt"`
 }
 
+// ListOrder The complete order of all lists; position becomes index plus one
+type ListOrder struct {
+	ListIds []openapi_types.UUID `json:"listIds"`
+}
+
 // ListPage defines model for ListPage.
 type ListPage struct {
 	Items []List `json:"items"`
@@ -115,6 +123,9 @@ type UpdateEntryJSONRequestBody = UpdateEntry
 // CreateListJSONRequestBody defines body for CreateList for application/json ContentType.
 type CreateListJSONRequestBody = CreateList
 
+// ReorderListsJSONRequestBody defines body for ReorderLists for application/json ContentType.
+type ReorderListsJSONRequestBody = ListOrder
+
 // UpdateListJSONRequestBody defines body for UpdateList for application/json ContentType.
 type UpdateListJSONRequestBody = UpdateList
 
@@ -141,6 +152,9 @@ type ServerInterface interface {
 	// CreateList Create a list
 	// (POST /api/lists)
 	CreateList(w http.ResponseWriter, r *http.Request)
+	// ReorderLists Set the order of all lists
+	// (PUT /api/lists/order)
+	ReorderLists(w http.ResponseWriter, r *http.Request)
 	// DeleteList Delete a list with all its entries
 	// (DELETE /api/lists/{listId})
 	DeleteList(w http.ResponseWriter, r *http.Request, listId openapi_types.UUID)
@@ -249,6 +263,20 @@ func (siw *ServerInterfaceWrapper) CreateList(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateList(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReorderLists operation middleware
+func (siw *ServerInterfaceWrapper) ReorderLists(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderLists(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -484,6 +512,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/lists", wrapper.ListLists)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/lists", wrapper.CreateList)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/lists/order", wrapper.ReorderLists)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/lists/{listId}", wrapper.DeleteList)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/lists/{listId}", wrapper.UpdateList)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/entries", wrapper.ListEntries)

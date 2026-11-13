@@ -1,11 +1,8 @@
 package entries
 
 import (
-	"bytes"
-	"context"
 	"errors"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +12,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"todo/internal/api"
+	"todo/internal/platform/db"
 	"todo/internal/platform/httpjson"
 	"todo/internal/platform/problem"
 	"todo/internal/platform/requestlog"
@@ -22,10 +20,7 @@ import (
 	"todo/internal/store"
 )
 
-const (
-	foreignKeyViolation = "23503"
-	maxOrderLength      = 500
-)
+const foreignKeyViolation = "23503"
 
 type Handler struct {
 	pool    *pgxpool.Pool
@@ -139,19 +134,15 @@ func (h *Handler) ReorderEntries(w http.ResponseWriter, r *http.Request, listId 
 		problem.Write(w, r, problem.Validation(err.Error()))
 		return
 	}
-	if err := validateOrder(body.EntryIds); err != nil {
+	if err := validate.Order(body.EntryIds, "entryIds"); err != nil {
 		problem.Write(w, r, problem.Validation(err.Error()))
 		return
 	}
-	positions := make(map[uuid.UUID]int32, len(body.EntryIds))
-	for index, id := range body.EntryIds {
-		positions[id] = int32(index + 1)
-	}
-	lockOrder := slices.Clone(body.EntryIds)
-	slices.SortFunc(lockOrder, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
-	err := h.inTransaction(r.Context(), func(queries *store.Queries) error {
+	positions := validate.Positions(body.EntryIds)
+	err := db.InTransaction(r.Context(), h.pool, func(tx pgx.Tx) error {
+		queries := h.queries.WithTx(tx)
 		now := h.now()
-		for _, id := range lockOrder {
+		for _, id := range validate.LockOrder(body.EntryIds) {
 			_, err := queries.MoveEntry(r.Context(), store.MoveEntryParams{
 				ListID:   listId,
 				Position: positions[id],
@@ -162,6 +153,13 @@ func (h *Handler) ReorderEntries(w http.ResponseWriter, r *http.Request, listId 
 				return err
 			}
 		}
+		count, err := queries.CountEntriesOfList(r.Context(), listId)
+		if err != nil {
+			return err
+		}
+		if count != int64(len(body.EntryIds)) {
+			return validate.ErrIncompleteOrder
+		}
 		return nil
 	})
 	if err != nil {
@@ -171,6 +169,8 @@ func (h *Handler) ReorderEntries(w http.ResponseWriter, r *http.Request, listId 
 			problem.Write(w, r, problem.Missing("entry does not exist"))
 		case errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation:
 			problem.Write(w, r, problem.Missing("list does not exist"))
+		case errors.Is(err, validate.ErrIncompleteOrder):
+			problem.Write(w, r, problem.Conflict(err.Error()))
 		default:
 			requestlog.From(r.Context()).Error("reorder entries", "error", err)
 			problem.Write(w, r, problem.InternalError())
@@ -178,33 +178,4 @@ func (h *Handler) ReorderEntries(w http.ResponseWriter, r *http.Request, listId 
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *Handler) inTransaction(ctx context.Context, work func(queries *store.Queries) error) error {
-	tx, err := h.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	if err := work(h.queries.WithTx(tx)); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-	return tx.Commit(ctx)
-}
-
-func validateOrder(ids []uuid.UUID) error {
-	if len(ids) == 0 {
-		return errors.New("entryIds is required")
-	}
-	if len(ids) > maxOrderLength {
-		return errors.New("entryIds has more than 500 ids")
-	}
-	seen := make(map[uuid.UUID]struct{}, len(ids))
-	for _, id := range ids {
-		if _, duplicate := seen[id]; duplicate {
-			return errors.New("entryIds contains a duplicate id")
-		}
-		seen[id] = struct{}{}
-	}
-	return nil
 }

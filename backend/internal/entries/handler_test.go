@@ -473,3 +473,18 @@ func TestRejectsAnEmptyOrDuplicateOrder(t *testing.T) {
 		})
 	}
 }
+
+func TestAnswers409ForAnIncompleteEntryOrderAndChangesNothing(t *testing.T) {
+	srv := newServer(t)
+	listID := createList(t)
+	a := createEntry(t, srv, listID, "a")
+	b := createEntry(t, srv, listID, "b")
+	c := createEntry(t, srv, listID, "c")
+
+	res := reorder(t, srv, listID, orderBody(c, a))
+
+	assertProblem(t, res, http.StatusConflict, problem.ConflictCode)
+	if got := idsOf(entriesOf(t, srv, listID)); len(got) != 3 || got[0] != a || got[1] != b || got[2] != c {
+		t.Fatalf("order changed although the request failed: %v", got)
+	}
+}

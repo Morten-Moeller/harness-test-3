@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countEntriesOfList = `-- name: CountEntriesOfList :one
+SELECT count(*) FROM entries WHERE list_id = $1
+`
+
+func (q *Queries) CountEntriesOfList(ctx context.Context, listID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countEntriesOfList, listID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createEntry = `-- name: CreateEntry :one
 INSERT INTO entries (id, list_id, title, done, position, created_at, updated_at)
 VALUES (
