@@ -164,6 +164,82 @@ func TestRejectsATitleOver200Characters(t *testing.T) {
 	}
 }
 
+func TestAcceptsATitleOfExactly200Characters(t *testing.T) {
+	srv := newServer(t)
+	title := strings.Repeat("ä", 192) + uuid.NewString()[:8]
+
+	res := postList(t, srv, fmt.Sprintf(`{"title": %q}`, title))
+
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("want 201 for 200 characters, got %d", res.StatusCode)
+	}
+}
+
+func TestRejectsInvalidTitles(t *testing.T) {
+	srv := newServer(t)
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "rejects a title of spaces only", body: `{"title": "   "}`},
+		{name: "rejects a missing title field", body: `{}`},
+		{name: "rejects a title with a NUL character", body: `{"title": "a\u0000b"}`},
+		{name: "rejects a title with a line break", body: `{"title": "a\nb"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := postList(t, srv, tc.body)
+			assertValidationFailed(t, res)
+		})
+	}
+}
+
+func TestStoresTheTrimmedTitle(t *testing.T) {
+	srv := newServer(t)
+	title := uniqueTitle(t, "trimmed")
+
+	res := postList(t, srv, fmt.Sprintf(`{"title": %q}`, "  "+title+"  "))
+
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("want 201, got %d", res.StatusCode)
+	}
+	found := false
+	for _, item := range getLists(t, srv).Items {
+		if item.Title == title {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("trimmed title %q not stored", title)
+	}
+}
+
+func TestReturnsTimesInUTC(t *testing.T) {
+	srv := newServer(t)
+	title := uniqueTitle(t, "utc")
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, title))
+
+	res, err := http.Get(srv.URL + "/api/lists")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	var page struct {
+		Items []struct {
+			Title     string `json:"title"`
+			CreatedAt string `json:"createdAt"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&page); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, item := range page.Items {
+		if item.Title == title && !strings.HasSuffix(item.CreatedAt, "Z") {
+			t.Fatalf("want createdAt in UTC with suffix Z, got %s", item.CreatedAt)
+		}
+	}
+}
+
 func TestRejectsABodyThatIsNotJSON(t *testing.T) {
 	srv := newServer(t)
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -97,8 +96,5 @@ func withLists(ctx context.Context, pool *pgxpool.Pool) result {
 }
 
 func fail(code, message, fix string) result {
-	if errors.Is(context.Cause(context.Background()), context.DeadlineExceeded) {
-		message = "timeout: " + message
-	}
 	return result{Ok: false, Error: &resultError{Code: code, Message: message, Fix: fix}}
 }

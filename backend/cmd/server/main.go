@@ -47,6 +47,9 @@ func run() error {
 		Addr:              cfg.HTTPAddr,
 		Handler:           server.New(logger, lists.New(pool)),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	errs := make(chan error, 1)
 	go func() {

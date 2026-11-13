@@ -11,13 +11,16 @@ import (
 
 type loggerKey struct{}
 
-const Header = "X-Request-Id"
+const (
+	Header      = "X-Request-Id"
+	maxIDLength = 64
+)
 
 func Middleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id := r.Header.Get(Header)
-			if id == "" {
+			if id == "" || len(id) > maxIDLength {
 				id = uuid.Must(uuid.NewV7()).String()
 			}
 			w.Header().Set(Header, id)
