@@ -14,3 +14,8 @@
 *.woff2 binary
 *.ttf binary
 *.otf binary
+
+# Generated files (make generate). GitHub folds them in the pull request view.
+backend/internal/api/api.gen.go linguist-generated=true
+backend/internal/store/*.go linguist-generated=true
+frontend/src/api/schema.d.ts linguist-generated=true

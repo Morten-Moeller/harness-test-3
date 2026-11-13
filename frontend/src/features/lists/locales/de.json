@@ -1,0 +1,14 @@
+{
+  "empty": "Noch keine Listen.",
+  "errors": {
+    "notFound": "Nicht gefunden.",
+    "unknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "validationFailed": "Bitte einen Titel mit 1 bis 200 Zeichen eingeben."
+  },
+  "form": {
+    "submit": "Anlegen",
+    "titleLabel": "Neue Liste"
+  },
+  "loading": "Lädt …",
+  "title": "Listen"
+}

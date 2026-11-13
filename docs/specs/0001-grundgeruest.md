@@ -1,7 +1,7 @@
 ---
 id: "0001"
 title: Grundgerüst
-status: approved
+status: Review
 risk: high
 adrs: ["0001", "0002", "0003", "0004"]
 owner: Morten Möller

@@ -12,12 +12,13 @@ default_branch: main
 
 # Directories with source code. The Stop hook reminds about uncommitted changes under them.
 source_paths:
-  - src
+  - frontend/src
+  - backend
 
 # Make target that regenerates the committed generated files (contracts, API types). The gate
 # `make drift` runs it and fails when a committed copy differs (harness/quality-gates.md).
 # Empty = no generated files.
-contracts_generate_target: ""
+contracts_generate_target: generate
 
 # End-to-end tests in CI: true runs `make e2e` as the required check `gates (e2e)`; the tests must
 # start the application themselves. false: `make e2e` runs locally (project-rules/testing.md) and
@@ -51,7 +52,7 @@ parallel_max: 3
 
 # Command a worker runs in its new worktree before it implements, as one quoted string. Add the
 # dependency install of the project, for example "make setup && pnpm -C frontend install".
-worktree_setup: "make setup"
+worktree_setup: "make setup && make install"
 
 # /review (harness/review.md): one combined agent run when the diff under review (the whole PR, or
 # the delta of an incremental run) changes at most this many lines.

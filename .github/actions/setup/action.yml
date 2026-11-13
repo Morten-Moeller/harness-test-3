@@ -1,19 +1,32 @@
 name: Setup
 description: >-
-  Project-owned toolchain setup for the quality gates. Fill the TODO steps with the project's
-  runtime and dependency install. The last steps install the stack-neutral tools for make sast
-  and make deps; keep them or replace them with the project's own.
+  Project-owned toolchain setup for the quality gates: Go for the backend, Node with pnpm for
+  the frontend, and the stack-neutral tools for make sast and make deps. golangci-lint, sqlc and
+  oapi-codegen run through go run with the versions pinned in the Makefile.
 
 runs:
   using: composite
   steps:
-    # TODO: runtime and dependencies of the project, for example:
-    # - uses: actions/setup-node@v4
-    #   with:
-    #     node-version-file: .nvmrc
-    #     cache: pnpm
-    # - run: pnpm install --frozen-lockfile
-    #   shell: bash
+    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      with:
+        go-version-file: backend/go.mod
+        cache-dependency-path: backend/go.sum
+
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      with:
+        version: 12.18.0
+
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version-file: frontend/.nvmrc
+        cache: pnpm
+        cache-dependency-path: frontend/pnpm-lock.yaml
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        (cd backend && go mod download)
+        (cd frontend && pnpm install --frozen-lockfile)
 
     - name: Install semgrep
       shell: bash

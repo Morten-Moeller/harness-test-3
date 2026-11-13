@@ -6,3 +6,7 @@ CLAUDE.local.md
 node_modules/
 .semgrep/
 osv-scanner-results.json
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+backend/bin/
