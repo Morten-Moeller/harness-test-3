@@ -1,11 +1,14 @@
 package lists
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"todo/internal/api"
 	"todo/internal/platform/httpjson"
@@ -66,4 +69,40 @@ func (h *Handler) CreateList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpjson.Write(w, http.StatusCreated, api.Created{Id: id})
+}
+
+func (h *Handler) UpdateList(w http.ResponseWriter, r *http.Request, listId openapi_types.UUID) {
+	var body api.UpdateList
+	if err := httpjson.Decode(w, r, &body); err != nil {
+		problem.Write(w, r, problem.Validation(err.Error()))
+		return
+	}
+	title, err := validate.Title(body.Title)
+	if err != nil {
+		problem.Write(w, r, problem.Validation(err.Error()))
+		return
+	}
+	if _, err := h.queries.UpdateList(r.Context(), store.UpdateListParams{ID: listId, Title: title, Now: h.now()}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			problem.Write(w, r, problem.Missing("list does not exist"))
+			return
+		}
+		requestlog.From(r.Context()).Error("update list", "error", err)
+		problem.Write(w, r, problem.InternalError())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) DeleteList(w http.ResponseWriter, r *http.Request, listId openapi_types.UUID) {
+	if _, err := h.queries.DeleteList(r.Context(), listId); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			problem.Write(w, r, problem.Missing("list does not exist"))
+			return
+		}
+		requestlog.From(r.Context()).Error("delete list", "error", err)
+		problem.Write(w, r, problem.InternalError())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -46,6 +46,19 @@ func (q *Queries) DeleteAllLists(ctx context.Context) error {
 	return err
 }
 
+const deleteList = `-- name: DeleteList :one
+DELETE FROM lists
+WHERE id = $1
+RETURNING id
+`
+
+func (q *Queries) DeleteList(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, deleteList, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const listLists = `-- name: ListLists :many
 SELECT id, title, position, created_at, updated_at
 FROM lists
@@ -76,4 +89,25 @@ func (q *Queries) ListLists(ctx context.Context) ([]List, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateList = `-- name: UpdateList :one
+UPDATE lists
+SET title = $1,
+    updated_at = $2
+WHERE id = $3
+RETURNING id
+`
+
+type UpdateListParams struct {
+	Title string
+	Now   time.Time
+	ID    uuid.UUID
+}
+
+func (q *Queries) UpdateList(ctx context.Context, arg UpdateListParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateList, arg.Title, arg.Now, arg.ID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

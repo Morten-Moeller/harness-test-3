@@ -80,6 +80,76 @@ func getLists(t *testing.T, srv *httptest.Server) api.ListPage {
 	return page
 }
 
+func call(t *testing.T, srv *httptest.Server, method, path, body string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(method, srv.URL+path, bytes.NewBufferString(body))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
+	}
+	t.Cleanup(func() { _ = res.Body.Close() })
+	return res
+}
+
+func createList(t *testing.T, srv *httptest.Server, title string) uuid.UUID {
+	t.Helper()
+	res := postList(t, srv, fmt.Sprintf(`{"title": %q}`, title))
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("want 201, got %d", res.StatusCode)
+	}
+	var created api.Created
+	if err := json.NewDecoder(res.Body).Decode(&created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return created.Id
+}
+
+func findList(t *testing.T, srv *httptest.Server, id uuid.UUID) (api.List, bool) {
+	t.Helper()
+	for _, item := range getLists(t, srv).Items {
+		if item.Id == id {
+			return item, true
+		}
+	}
+	return api.List{}, false
+}
+
+func createEntry(t *testing.T, srv *httptest.Server, listID uuid.UUID, title string) uuid.UUID {
+	t.Helper()
+	res := call(t, srv, http.MethodPost, "/api/lists/"+listID.String()+"/entries", fmt.Sprintf(`{"title": %q}`, title))
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("want 201, got %d", res.StatusCode)
+	}
+	var created api.Created
+	if err := json.NewDecoder(res.Body).Decode(&created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return created.Id
+}
+
+func entryIDsOf(t *testing.T, srv *httptest.Server, listID uuid.UUID) []uuid.UUID {
+	t.Helper()
+	res := call(t, srv, http.MethodGet, "/api/entries", "")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("want 200, got %d", res.StatusCode)
+	}
+	var page api.EntryPage
+	if err := json.NewDecoder(res.Body).Decode(&page); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	var ids []uuid.UUID
+	for _, item := range page.Items {
+		if item.ListId == listID {
+			ids = append(ids, item.Id)
+		}
+	}
+	return ids
+}
+
 func uniqueTitle(t *testing.T, prefix string) string {
 	return fmt.Sprintf("%s %s %s", prefix, t.Name(), uuid.NewString()[:8])
 }
@@ -275,10 +345,99 @@ func TestRejectsABodyThatIsNotJSON(t *testing.T) {
 	assertValidationFailed(t, res)
 }
 
+func TestRenamesAListAndKeepsPositionAndCreatedAt(t *testing.T) {
+	srv := newServer(t)
+	id := createList(t, srv, uniqueTitle(t, "Einkauf"))
+	before, _ := findList(t, srv, id)
+	newTitle := uniqueTitle(t, "Wochenmarkt")
+
+	res := call(t, srv, http.MethodPatch, "/api/lists/"+id.String(), fmt.Sprintf(`{"title": %q}`, "  "+newTitle+"  "))
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("want 204, got %d", res.StatusCode)
+	}
+	after, found := findList(t, srv, id)
+	if !found || after.Title != newTitle {
+		t.Fatalf("want trimmed title %q, got %+v", newTitle, after)
+	}
+	if after.Position != before.Position || !after.CreatedAt.Equal(before.CreatedAt) {
+		t.Fatalf("want unchanged position and created_at, got %+v then %+v", before, after)
+	}
+	if !after.UpdatedAt.After(before.UpdatedAt) {
+		t.Fatalf("want later updated_at, got %v then %v", before.UpdatedAt, after.UpdatedAt)
+	}
+}
+
+func TestRejectsInvalidListTitles(t *testing.T) {
+	srv := newServer(t)
+	title := uniqueTitle(t, "unchanged")
+	id := createList(t, srv, title)
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "rejects an empty title", body: `{"title": ""}`},
+		{name: "rejects spaces only", body: `{"title": "   "}`},
+		{name: "rejects 201 characters", body: fmt.Sprintf(`{"title": %q}`, strings.Repeat("ä", 201))},
+		{name: "rejects a NUL character", body: `{"title": "a\u0000b"}`},
+		{name: "rejects a line break", body: `{"title": "a\nb"}`},
+		{name: "rejects a missing title field", body: `{}`},
+		{name: "rejects a body that is not JSON", body: `{"title": `},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := call(t, srv, http.MethodPatch, "/api/lists/"+id.String(), tc.body)
+			assertValidationFailed(t, res)
+		})
+	}
+	if after, _ := findList(t, srv, id); after.Title != title {
+		t.Fatalf("rejected update changed the list: %+v", after)
+	}
+}
+
+func TestAnswers404WhenRenamingAnUnknownList(t *testing.T) {
+	srv := newServer(t)
+
+	res := call(t, srv, http.MethodPatch, "/api/lists/"+uuid.NewString(), `{"title": "Wochenmarkt"}`)
+
+	assertProblem(t, res, http.StatusNotFound, problem.NotFound)
+}
+
+func TestDeletesAListWithItsEntriesAndAnswers404Afterwards(t *testing.T) {
+	srv := newServer(t)
+	id := createList(t, srv, uniqueTitle(t, "Einkauf"))
+	createEntry(t, srv, id, "Milch")
+	createEntry(t, srv, id, "Brot")
+	otherID := createList(t, srv, uniqueTitle(t, "Arbeit"))
+	otherEntry := createEntry(t, srv, otherID, "Bericht")
+
+	res := call(t, srv, http.MethodDelete, "/api/lists/"+id.String(), "")
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("want 204, got %d", res.StatusCode)
+	}
+	if _, found := findList(t, srv, id); found {
+		t.Fatalf("list %s still stored", id)
+	}
+	if got := entryIDsOf(t, srv, id); len(got) != 0 {
+		t.Fatalf("entries of the deleted list still stored: %v", got)
+	}
+	if got := entryIDsOf(t, srv, otherID); len(got) != 1 || got[0] != otherEntry {
+		t.Fatalf("want entry %s of the other list kept, got %v", otherEntry, got)
+	}
+	res = call(t, srv, http.MethodDelete, "/api/lists/"+id.String(), "")
+	assertProblem(t, res, http.StatusNotFound, problem.NotFound)
+}
+
 func assertValidationFailed(t *testing.T, res *http.Response) {
 	t.Helper()
-	if res.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400, got %d", res.StatusCode)
+	assertProblem(t, res, http.StatusBadRequest, problem.ValidationFailed)
+}
+
+func assertProblem(t *testing.T, res *http.Response, status int, code problem.Code) {
+	t.Helper()
+	if res.StatusCode != status {
+		t.Fatalf("want %d, got %d", status, res.StatusCode)
 	}
 	if ct := res.Header.Get("Content-Type"); ct != problem.ContentType {
 		t.Fatalf("want content type %s, got %s", problem.ContentType, ct)
@@ -287,7 +446,7 @@ func assertValidationFailed(t *testing.T, res *http.Response) {
 	if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if p.ErrorCode != problem.ValidationFailed || p.Status != http.StatusBadRequest {
-		t.Fatalf("want VALIDATION_FAILED 400, got %+v", p)
+	if p.ErrorCode != code || p.Status != status {
+		t.Fatalf("want %s %d, got %+v", code, status, p)
 	}
 }

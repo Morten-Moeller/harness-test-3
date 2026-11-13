@@ -16,3 +16,15 @@ RETURNING id;
 
 -- name: DeleteAllLists :exec
 DELETE FROM lists;
+
+-- name: UpdateList :one
+UPDATE lists
+SET title = sqlc.arg(title),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id)
+RETURNING id;
+
+-- name: DeleteList :one
+DELETE FROM lists
+WHERE id = sqlc.arg(id)
+RETURNING id;

@@ -55,6 +55,62 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/lists/{listId}:
+    parameters:
+      - name: listId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateList
+      summary: Rename a list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateList"
+      responses:
+        "204":
+          description: The list was renamed
+        "400":
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: The list does not exist
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteList
+      summary: Delete a list with all its entries
+      responses:
+        "204":
+          description: The list and its entries were deleted
+        "404":
+          description: The list does not exist
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/entries:
     get:
       operationId: listEntries
@@ -199,6 +255,14 @@ components:
           items:
             $ref: "#/components/schemas/List"
     CreateList:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+    UpdateList:
       type: object
       required: [title]
       properties:

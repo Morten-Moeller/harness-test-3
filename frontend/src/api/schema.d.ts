@@ -22,6 +22,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lists/{listId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                listId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a list with all its entries */
+        delete: operations["deleteList"];
+        options?: never;
+        head?: never;
+        /** Rename a list */
+        patch: operations["updateList"];
+        trace?: never;
+    };
     "/api/entries": {
         parameters: {
             query?: never;
@@ -95,6 +115,9 @@ export interface components {
             items: components["schemas"]["List"][];
         };
         CreateList: {
+            title: string;
+        };
+        UpdateList: {
             title: string;
         };
         Entry: {
@@ -199,6 +222,95 @@ export interface operations {
             };
             /** @description Invalid input */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                listId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list and its entries were deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The list does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                listId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateList"];
+            };
+        };
+        responses: {
+            /** @description The list was renamed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The list does not exist */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

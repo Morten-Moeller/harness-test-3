@@ -36,3 +36,34 @@ export function useCreateList() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: listsKey }),
   })
 }
+
+export function useUpdateList() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ listId, title }: { listId: string; title: string }) => {
+      const { error, response } = await api.PATCH('/api/lists/{listId}', {
+        params: { path: { listId } },
+        body: { title },
+      })
+      if (error !== undefined || !response.ok) {
+        throw new ApiError(parseProblem(error), response.status)
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: listsKey }),
+  })
+}
+
+export function useDeleteList() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (listId: string) => {
+      const { error, response } = await api.DELETE('/api/lists/{listId}', { params: { path: { listId } } })
+      if (error !== undefined || !response.ok) {
+        throw new ApiError(parseProblem(error), response.status)
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
