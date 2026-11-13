@@ -2,8 +2,6 @@ import { type FocusEvent, type KeyboardEvent, type ReactNode, useEffect, useRef,
 
 import styles from './InlineTitle.module.css'
 
-export const inlineTitleStyles = styles
-
 type Props = {
   title: string
   titleClassName?: string

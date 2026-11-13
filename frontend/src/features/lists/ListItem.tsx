@@ -3,7 +3,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { InlineTitle, inlineTitleStyles } from '../../ui/InlineTitle'
+import { IconButton } from '../../ui/IconButton'
+import { InlineTitle } from '../../ui/InlineTitle'
 import { TrashIcon } from '../../ui/TrashIcon'
 import { errorKey } from './errorKey'
 import { listDragType } from './ListsDnd'
@@ -61,20 +62,15 @@ export function ListItem({ list, children }: { list: List; children?: ReactNode 
             onOpen={() => updateList.reset()}
             onSave={(draft, close) => updateList.mutate({ listId: list.id, title: draft }, { onSuccess: close })}
             actions={(close) => (
-              <button
-                type="button"
-                className={inlineTitleStyles.iconButton}
-                title={t('deleteList')}
-                aria-label={t('deleteList')}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
+              <IconButton
+                label={t('deleteList')}
+                icon={<TrashIcon />}
+                onPress={() => {
                   close()
                   setMode('confirmDelete')
                 }}
-                data-testid="list-delete"
-              >
-                <TrashIcon />
-              </button>
+                testId="list-delete"
+              />
             )}
           />
         </h2>

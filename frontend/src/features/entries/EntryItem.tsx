@@ -2,7 +2,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useTranslation } from 'react-i18next'
 
-import { InlineTitle, inlineTitleStyles } from '../../ui/InlineTitle'
+import { IconButton } from '../../ui/IconButton'
+import { InlineTitle } from '../../ui/InlineTitle'
 import { TrashIcon } from '../../ui/TrashIcon'
 import { type Entry, useDeleteEntry, useUpdateEntry } from './entriesApi'
 import { errorKey } from './errorKey'
@@ -59,18 +60,13 @@ export function EntryItem({ entry }: { entry: Entry }) {
         onOpen={() => updateEntry.reset()}
         onSave={(draft, close) => updateEntry.mutate({ entryId: entry.id, title: draft }, { onSuccess: close })}
         actions={() => (
-          <button
-            type="button"
-            className={inlineTitleStyles.iconButton}
-            title={t('deleteEntry')}
-            aria-label={t('deleteEntry')}
+          <IconButton
+            label={t('deleteEntry')}
+            icon={<TrashIcon />}
             disabled={deleteEntry.isPending}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => deleteEntry.mutate(entry.id)}
-            data-testid="entry-delete"
-          >
-            <TrashIcon />
-          </button>
+            onPress={() => deleteEntry.mutate(entry.id)}
+            testId="entry-delete"
+          />
         )}
       />
       {rowError !== null && (

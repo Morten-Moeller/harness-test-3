@@ -93,6 +93,23 @@ test('saves when the field loses focus', async ({ page }) => {
   await expect(entryOf(listCard(page, 'Einkauf'), 'Brötchen')).toBeVisible()
 })
 
+test('keeps editing when Tab moves to the delete icon and saves when Tab leaves', async ({ page }) => {
+  await page.goto('/')
+  const card = listCard(page, 'Einkauf')
+  await entryOf(card, 'Brot').getByTestId('entry-title').dblclick()
+  const input = card.getByTestId('entry-title-input')
+  await input.fill('Baguette')
+
+  await page.keyboard.press('Tab')
+  await expect(card.getByTestId('entry-edit-form').getByTestId('entry-delete')).toBeFocused()
+  await expect(input).toHaveValue('Baguette')
+
+  const saved = page.waitForResponse((response) => response.request().method() === 'PATCH')
+  await page.keyboard.press('Tab')
+  await saved
+  await expect(entryOf(card, 'Baguette')).toBeVisible()
+})
+
 test('keeps the field open for an empty title', async ({ page }) => {
   await page.goto('/')
   const card = listCard(page, 'Einkauf')
@@ -116,7 +133,16 @@ test('shows the delete icon only while editing and deletes the entry', async ({ 
   const icon = card.getByTestId('entry-edit-form').getByTestId('entry-delete')
   await expect(icon).toHaveAttribute('title', entriesDe.deleteEntry)
   await expect(icon).toHaveAccessibleName(entriesDe.deleteEntry)
+  const patches: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH') {
+      patches.push(request.url())
+    }
+  })
+  const deleted = page.waitForResponse((response) => response.request().method() === 'DELETE')
   await icon.click()
+  await deleted
+  expect(patches).toEqual([])
 
   await expect(card.getByTestId('entry-title')).toHaveText(['Milch', 'Äpfel'])
   await page.reload()
