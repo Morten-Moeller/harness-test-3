@@ -54,6 +54,7 @@ test('edits and deletes an entry', async ({ page }) => {
   const item = await addEntry(card, title)
   await item.getByTestId('entry-edit').click()
   const editForm = card.getByTestId('entry-edit-form')
+  await expect(editForm.getByTestId('entry-title-input')).toBeFocused()
   await editForm.getByTestId('entry-title-input').fill(newTitle)
   await editForm.getByTestId('entry-save').click()
   const renamed = card.getByTestId('entry-item').filter({ hasText: newTitle })

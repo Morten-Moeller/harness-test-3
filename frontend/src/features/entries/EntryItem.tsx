@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { type Entry, useDeleteEntry, useUpdateEntry } from './entriesApi'
@@ -11,6 +11,13 @@ export function EntryItem({ entry }: { entry: Entry }) {
   const deleteEntry = useDeleteEntry()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(entry.title)
+  const draftInput = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) {
+      draftInput.current?.select()
+    }
+  }, [editing])
 
   const startEditing = () => {
     setDraft(entry.title)
@@ -29,6 +36,7 @@ export function EntryItem({ entry }: { entry: Entry }) {
       {editing ? (
         <form className={styles.editForm} onSubmit={onSave} noValidate data-testid="entry-edit-form">
           <input
+            ref={draftInput}
             className={styles.input}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
