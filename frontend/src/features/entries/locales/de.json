@@ -14,6 +14,7 @@
   "empty": "Keine Einträge.",
   "emptyOpen": "Keine offenen Einträge.",
   "errors": {
+    "conflict": "Die Einträge wurden inzwischen geändert. Die Ansicht ist neu geladen, bitte erneut verschieben.",
     "notFound": "Nicht gefunden. Bitte Seite neu laden.",
     "unknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "validationFailed": "Bitte einen Titel mit 1 bis 200 Zeichen eingeben."

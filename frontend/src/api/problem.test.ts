@@ -19,6 +19,11 @@ describe('parseProblem', () => {
       body: { type: 'about:blank', title: 'Not found', status: 404, errorCode: 'NOT_FOUND' },
       want: { type: 'about:blank', title: 'Not found', status: 404, errorCode: 'NOT_FOUND' },
     },
+    {
+      name: 'reads a conflict',
+      body: { type: 'about:blank', title: 'Conflict', status: 409, errorCode: 'CONFLICT' },
+      want: { type: 'about:blank', title: 'Conflict', status: 409, errorCode: 'CONFLICT' },
+    },
     { name: 'rejects an unknown errorCode', body: { ...valid, errorCode: 'SOMETHING' }, want: undefined },
     { name: 'rejects a missing errorCode', body: { type: 'a', title: 'b', status: 500 }, want: undefined },
     { name: 'rejects a status that is not a number', body: { ...valid, status: '400' }, want: undefined },

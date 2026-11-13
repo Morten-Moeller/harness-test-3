@@ -22,6 +22,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lists/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the order of all lists */
+        put: operations["reorderLists"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lists/{listId}": {
         parameters: {
             query?: never;
@@ -162,6 +179,10 @@ export interface components {
             title?: string;
             done?: boolean;
         };
+        /** @description The complete order of all lists; position becomes index plus one */
+        ListOrder: {
+            listIds: string[];
+        };
         /** @description The complete order of the entries of a list; position becomes index plus one */
         EntryOrder: {
             entryIds: string[];
@@ -179,7 +200,7 @@ export interface components {
             detail?: string;
             instance?: string;
             /** @enum {string} */
-            errorCode: "VALIDATION_FAILED" | "NOT_FOUND" | "INTERNAL";
+            errorCode: "VALIDATION_FAILED" | "NOT_FOUND" | "CONFLICT" | "INTERNAL";
         };
     };
     responses: never;
@@ -243,6 +264,64 @@ export interface operations {
             };
             /** @description Invalid input */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reorderLists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ListOrder"];
+            };
+        };
+        responses: {
+            /** @description The order was set */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A list does not exist; nothing changed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The order does not contain exactly the current items of the container; nothing changed */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -465,6 +544,15 @@ export interface operations {
             };
             /** @description The list or an entry does not exist; nothing changed */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The order does not contain exactly the current items of the container; nothing changed */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

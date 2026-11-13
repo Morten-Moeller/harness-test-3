@@ -1,3 +1,4 @@
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { type FormEvent, type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -57,6 +58,7 @@ export function ListsPage({ renderList }: { renderList?: (list: List) => ReactNo
             {t('empty')}
           </p>
         ) : (
+          <SortableContext items={lists.data.map((list) => list.id)} strategy={verticalListSortingStrategy}>
           <ul className={styles.list} data-testid="lists">
             {lists.data.map((list) => (
               <ListItem key={list.id} list={list}>
@@ -64,6 +66,7 @@ export function ListsPage({ renderList }: { renderList?: (list: List) => ReactNo
               </ListItem>
             ))}
           </ul>
+          </SortableContext>
         ))}
     </main>
   )

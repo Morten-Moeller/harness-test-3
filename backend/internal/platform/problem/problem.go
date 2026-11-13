@@ -12,6 +12,7 @@ type Code string
 const (
 	ValidationFailed Code = "VALIDATION_FAILED"
 	NotFound         Code = "NOT_FOUND"
+	ConflictCode     Code = "CONFLICT"
 	Internal         Code = "INTERNAL"
 )
 
@@ -30,6 +31,10 @@ func Validation(detail string) Problem {
 
 func Missing(detail string) Problem {
 	return Problem{Type: "about:blank", Title: "Not found", Status: http.StatusNotFound, Detail: detail, ErrorCode: NotFound}
+}
+
+func Conflict(detail string) Problem {
+	return Problem{Type: "about:blank", Title: "Conflict", Status: http.StatusConflict, Detail: detail, ErrorCode: ConflictCode}
 }
 
 func InternalError() Problem {

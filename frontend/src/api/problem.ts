@@ -1,4 +1,4 @@
-export const errorCodes = ['VALIDATION_FAILED', 'NOT_FOUND', 'INTERNAL'] as const
+export const errorCodes = ['VALIDATION_FAILED', 'NOT_FOUND', 'CONFLICT', 'INTERNAL'] as const
 
 export type ErrorCode = (typeof errorCodes)[number]
 

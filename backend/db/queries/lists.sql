@@ -28,3 +28,13 @@ RETURNING id;
 DELETE FROM lists
 WHERE id = sqlc.arg(id)
 RETURNING id;
+
+-- name: MoveList :one
+UPDATE lists
+SET position = sqlc.arg(position),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id)
+RETURNING id;
+
+-- name: CountLists :one
+SELECT count(*) FROM lists;

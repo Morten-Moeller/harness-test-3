@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -448,5 +449,127 @@ func assertProblem(t *testing.T, res *http.Response, status int, code problem.Co
 	}
 	if p.ErrorCode != code || p.Status != status {
 		t.Fatalf("want %s %d, got %+v", code, status, p)
+	}
+}
+
+func putListOrder(t *testing.T, srv *httptest.Server, ids []uuid.UUID) *http.Response {
+	t.Helper()
+	quoted := make([]string, 0, len(ids))
+	for _, id := range ids {
+		quoted = append(quoted, fmt.Sprintf("%q", id.String()))
+	}
+	return putRaw(t, srv, fmt.Sprintf(`{"listIds": [%s]}`, strings.Join(quoted, ", ")))
+}
+
+func putRaw(t *testing.T, srv *httptest.Server, body string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/lists/order", bytes.NewBufferString(body))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	t.Cleanup(func() { _ = res.Body.Close() })
+	return res
+}
+
+func listIDs(page api.ListPage) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(page.Items))
+	for _, item := range page.Items {
+		ids = append(ids, item.Id)
+	}
+	return ids
+}
+
+func assertProblemCode(t *testing.T, res *http.Response, status int, code problem.Code) {
+	t.Helper()
+	if res.StatusCode != status {
+		t.Fatalf("want %d, got %d", status, res.StatusCode)
+	}
+	var p problem.Problem
+	if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if p.ErrorCode != code {
+		t.Fatalf("want errorCode %s, got %+v", code, p)
+	}
+}
+
+func TestReordersTheLists(t *testing.T) {
+	srv := newServer(t)
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, uniqueTitle(t, "one")))
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, uniqueTitle(t, "two")))
+	before := getLists(t, srv)
+	reversed := listIDs(before)
+	slices.Reverse(reversed)
+
+	res := putListOrder(t, srv, reversed)
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("want 204, got %d", res.StatusCode)
+	}
+	after := getLists(t, srv)
+	if got := listIDs(after); !slices.Equal(got, reversed) {
+		t.Fatalf("want order %v, got %v", reversed, got)
+	}
+	for i, item := range after.Items {
+		if item.Position != int32(i+1) {
+			t.Fatalf("want position %d for %s, got %d", i+1, item.Title, item.Position)
+		}
+		if !item.UpdatedAt.After(item.CreatedAt) {
+			t.Fatalf("want a later updated_at for %s", item.Title)
+		}
+	}
+}
+
+func TestAnswers404ForAnUnknownListIdAndChangesNothing(t *testing.T) {
+	srv := newServer(t)
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, uniqueTitle(t, "one")))
+	before := listIDs(getLists(t, srv))
+	reversed := slices.Clone(before)
+	slices.Reverse(reversed)
+
+	res := putListOrder(t, srv, append(reversed, uuid.New()))
+
+	assertProblemCode(t, res, http.StatusNotFound, problem.NotFound)
+	if got := listIDs(getLists(t, srv)); !slices.Equal(got, before) {
+		t.Fatalf("order changed although the request failed: %v", got)
+	}
+}
+
+func TestAnswers409ForAnIncompleteListOrderAndChangesNothing(t *testing.T) {
+	srv := newServer(t)
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, uniqueTitle(t, "one")))
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, uniqueTitle(t, "two")))
+	before := listIDs(getLists(t, srv))
+	partial := []uuid.UUID{before[len(before)-1], before[0]}
+
+	res := putListOrder(t, srv, partial)
+
+	assertProblemCode(t, res, http.StatusConflict, problem.ConflictCode)
+	if got := listIDs(getLists(t, srv)); !slices.Equal(got, before) {
+		t.Fatalf("order changed although the request failed: %v", got)
+	}
+}
+
+func TestRejectsAnEmptyOrDuplicateListOrder(t *testing.T) {
+	srv := newServer(t)
+	postList(t, srv, fmt.Sprintf(`{"title": %q}`, uniqueTitle(t, "one")))
+	id := listIDs(getLists(t, srv))[0]
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "rejects an empty order", body: `{"listIds": []}`},
+		{name: "rejects a missing field", body: `{}`},
+		{name: "rejects duplicate ids", body: fmt.Sprintf(`{"listIds": [%q, %q]}`, id, id)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assertProblemCode(t, putRaw(t, srv, tc.body), http.StatusBadRequest, problem.ValidationFailed)
+		})
 	}
 }

@@ -39,3 +39,6 @@ SET list_id = sqlc.arg(list_id),
     updated_at = sqlc.arg(now)
 WHERE id = sqlc.arg(id)
 RETURNING id;
+
+-- name: CountEntriesOfList :one
+SELECT count(*) FROM entries WHERE list_id = sqlc.arg(list_id);

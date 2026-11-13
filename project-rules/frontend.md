@@ -27,7 +27,7 @@ sources: [frontend/src/**, frontend/vite.config.ts, frontend/eslint.config.js, f
   (A7.2); no manual reload.
 - Client state is local to its component (`useState`). Settings and interaction state that
   several components of one feature share live in a React context of that feature
-  (`OpenOnlyProvider`, `EntriesDndProvider` under `features/entries/`), provided by `app/App.tsx`.
+  (`OpenOnlyProvider` under `features/entries/`), provided by `app/App.tsx`.
   No global store.
 - API calls go through `useApi()` (openapi-fetch with the types from `schema.d.ts`). A failed
   call throws `ApiError`; the UI branches on `errorCodeOf(error)`, never on message text (A2.3).
@@ -45,7 +45,11 @@ sources: [frontend/src/**, frontend/vite.config.ts, frontend/eslint.config.js, f
 - Accessibility: every control has a label or an accessible name and works with the keyboard;
   visible focus through `--color-focus` (geprüft: eslint `jsx-a11y`).
 - Elements that end-to-end tests drive carry `data-testid` (A7.6).
-- Drag and drop: dnd-kit. One `DndContext` per feature, a handle button per item with an
+- Drag and drop: dnd-kit. One `DndContext` for the page in `app/DndRoot.tsx` (ADR 0007). Each
+  feature delivers a drag module through a hook (`useEntriesDnd`, `useListsDnd`, type
+  `DndModule` in `app/dndModule.ts`): its drag type, the targets it accepts (also for the
+  keyboard), collision, events, overlay, announcements and a `wrap` for its preview context.
+  A handle button per item with an
   `aria-label`, `PointerSensor` with a 5 px activation distance so clicks keep working,
   `KeyboardSensor` with `sortableKeyboardCoordinates`, screen reader announcements and
   instructions through i18n. The new order is computed in a pure function with a unit test and

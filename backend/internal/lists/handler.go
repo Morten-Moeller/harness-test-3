@@ -11,6 +11,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"todo/internal/api"
+	"todo/internal/platform/db"
 	"todo/internal/platform/httpjson"
 	"todo/internal/platform/problem"
 	"todo/internal/platform/requestlog"
@@ -19,12 +20,13 @@ import (
 )
 
 type Handler struct {
+	pool    *pgxpool.Pool
 	queries *store.Queries
 	now     func() time.Time
 }
 
 func New(pool *pgxpool.Pool) *Handler {
-	return &Handler{queries: store.New(pool), now: func() time.Time { return time.Now().UTC() }}
+	return &Handler{pool: pool, queries: store.New(pool), now: func() time.Time { return time.Now().UTC() }}
 }
 
 func (h *Handler) ListLists(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +104,49 @@ func (h *Handler) DeleteList(w http.ResponseWriter, r *http.Request, listId open
 		}
 		requestlog.From(r.Context()).Error("delete list", "error", err)
 		problem.Write(w, r, problem.InternalError())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ReorderLists(w http.ResponseWriter, r *http.Request) {
+	var body api.ListOrder
+	if err := httpjson.Decode(w, r, &body); err != nil {
+		problem.Write(w, r, problem.Validation(err.Error()))
+		return
+	}
+	if err := validate.Order(body.ListIds, "listIds"); err != nil {
+		problem.Write(w, r, problem.Validation(err.Error()))
+		return
+	}
+	positions := validate.Positions(body.ListIds)
+	err := db.InTransaction(r.Context(), h.pool, func(tx pgx.Tx) error {
+		queries := h.queries.WithTx(tx)
+		now := h.now()
+		for _, id := range validate.LockOrder(body.ListIds) {
+			if _, err := queries.MoveList(r.Context(), store.MoveListParams{Position: positions[id], Now: now, ID: id}); err != nil {
+				return err
+			}
+		}
+		count, err := queries.CountLists(r.Context())
+		if err != nil {
+			return err
+		}
+		if count != int64(len(body.ListIds)) {
+			return validate.ErrIncompleteOrder
+		}
+		return nil
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			problem.Write(w, r, problem.Missing("list does not exist"))
+		case errors.Is(err, validate.ErrIncompleteOrder):
+			problem.Write(w, r, problem.Conflict(err.Error()))
+		default:
+			requestlog.From(r.Context()).Error("reorder lists", "error", err)
+			problem.Write(w, r, problem.InternalError())
+		}
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

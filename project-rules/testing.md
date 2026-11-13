@@ -32,9 +32,10 @@ commands of the project.
 |---|---|---|
 | `backend/internal/lists/` | `backend/internal/lists/handler_test.go` | `frontend/e2e/lists.spec.ts` |
 | `backend/internal/entries/` | `backend/internal/entries/handler_test.go` | `frontend/e2e/entries.spec.ts` |
-| `backend/internal/platform/` | `backend/internal/platform/config/config_test.go`, `backend/internal/platform/validate/validate_test.go` | – |
+| `backend/internal/platform/` | `backend/internal/platform/config/config_test.go`, `backend/internal/platform/validate/validate_test.go`; `db` and `validate/order.go` through `backend/internal/lists/handler_test.go` and `backend/internal/entries/handler_test.go` | – |
 | `frontend/src/api/` | `frontend/src/api/problem.test.ts` | – |
-| `frontend/src/features/lists/` | – | `frontend/e2e/lists.spec.ts` |
+| `frontend/src/features/lists/` | `frontend/src/features/lists/order.test.ts` | `frontend/e2e/lists.spec.ts`, `frontend/e2e/drag-lists.spec.ts` |
+| `frontend/src/app/` | – | `frontend/e2e/drag-entries.spec.ts`, `frontend/e2e/drag-lists.spec.ts` |
 | `frontend/src/features/entries/` | `frontend/src/features/entries/openOnly.test.ts`, `frontend/src/features/entries/order.test.ts` | `frontend/e2e/entries.spec.ts`, `frontend/e2e/open-only.spec.ts`, `frontend/e2e/drag-entries.spec.ts` |
 
 ## End-to-end
@@ -70,3 +71,9 @@ commands of the project.
 - Automated: `make check`, `make e2e` and the tests of the touched areas (table Areas).
 - Browser checks: `make dev` and `http://localhost:5173`, or `docker compose up --build` and
   `http://localhost:8080`; no login; test data with `make seed STATE=with-entries`.
+
+## Drag and drop in end-to-end tests
+
+- Drag with `page.mouse` in steps; read the order shown while dragging from the bounding boxes,
+  wait until it is stable, then release. Wait for the `PUT .../order` response before a reload.
+- With the keyboard, wait for the announcement of the new position before the drop key.

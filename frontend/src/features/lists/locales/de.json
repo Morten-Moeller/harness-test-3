@@ -3,9 +3,18 @@
   "confirm": "Bestätigen",
   "confirmDelete": "Liste mit allen Einträgen löschen?",
   "delete": "Löschen",
+  "dnd": {
+    "cancelled": "Verschieben der Liste {{title}} abgebrochen.",
+    "dropped": "Liste {{title}} an Position {{position}} abgelegt.",
+    "instructions": "Zum Aufnehmen die Leertaste drücken, mit den Pfeiltasten bewegen, mit der Leertaste ablegen, mit Escape abbrechen.",
+    "movedOver": "Liste {{title}} ist über Position {{position}}.",
+    "noTarget": "Liste {{title}} ist über keinem Ziel.",
+    "pickedUp": "Liste {{title}} aufgenommen."
+  },
   "editTitle": "Titel der Liste",
   "empty": "Noch keine Listen.",
   "errors": {
+    "conflict": "Die Listen wurden inzwischen geändert. Die Ansicht ist neu geladen, bitte erneut verschieben.",
     "notFound": "Nicht gefunden.",
     "unknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "validationFailed": "Bitte einen Titel mit 1 bis 200 Zeichen eingeben."
@@ -14,6 +23,7 @@
     "submit": "Anlegen",
     "titleLabel": "Neue Liste"
   },
+  "handle": "Liste verschieben",
   "loading": "Lädt …",
   "rename": "Umbenennen",
   "save": "Speichern",
