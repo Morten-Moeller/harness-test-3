@@ -93,8 +93,12 @@ func validateTitle(title string) error {
 
 func decode(w http.ResponseWriter, r *http.Request, target any) error {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		return errors.New("body is larger than 64 KiB")
+	}
 	if err != nil {
-		return errors.New("body is not readable or larger than 64 KiB")
+		return errors.New("body is not readable")
 	}
 	if err := json.Unmarshal(body, target); err != nil {
 		return errors.New("body is not valid JSON")

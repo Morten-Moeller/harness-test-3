@@ -233,11 +233,28 @@ func TestReturnsTimesInUTC(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&page); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+	found := false
 	for _, item := range page.Items {
-		if item.Title == title && !strings.HasSuffix(item.CreatedAt, "Z") {
+		if item.Title != title {
+			continue
+		}
+		found = true
+		if !strings.HasSuffix(item.CreatedAt, "Z") {
 			t.Fatalf("want createdAt in UTC with suffix Z, got %s", item.CreatedAt)
 		}
 	}
+	if !found {
+		t.Fatalf("list %q not returned", title)
+	}
+}
+
+func TestRejectsABodyOver64KiB(t *testing.T) {
+	srv := newServer(t)
+	body := fmt.Sprintf(`{"title": %q}`, strings.Repeat("a", 70*1024))
+
+	res := postList(t, srv, body)
+
+	assertValidationFailed(t, res)
 }
 
 func TestRejectsABodyThatIsNotJSON(t *testing.T) {
