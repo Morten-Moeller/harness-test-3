@@ -1,14 +1,14 @@
 ---
 id: "0003"
 title: Nur offene Einträge anzeigen
-status: Review
+status: done
 risk: medium
 adrs: []
 owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
-pr: ""
-note: "freigegeben in der Session"
+pr: "#6"
+note: "alle Kriterien erfüllt"
 ---
 
 # Nur offene Einträge anzeigen
