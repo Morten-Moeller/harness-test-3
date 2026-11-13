@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"todo/internal/api"
+	"todo/internal/entries"
 	"todo/internal/lists"
 	"todo/internal/platform/problem"
 	"todo/internal/platform/server"
@@ -26,6 +27,15 @@ import (
 )
 
 var pool *pgxpool.Pool
+
+type listsAPI = lists.Handler
+
+type entriesAPI = entries.Handler
+
+type handlers struct {
+	*listsAPI
+	*entriesAPI
+}
 
 func TestMain(m *testing.M) {
 	var stop func()
@@ -38,7 +48,7 @@ func TestMain(m *testing.M) {
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv := httptest.NewServer(server.New(logger, lists.New(pool)))
+	srv := httptest.NewServer(server.New(logger, handlers{lists.New(pool), entries.New(pool)}))
 	t.Cleanup(srv.Close)
 	return srv
 }

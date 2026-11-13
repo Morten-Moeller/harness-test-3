@@ -31,9 +31,11 @@ commands of the project.
 | Source path | Unit and integration | End-to-end |
 |---|---|---|
 | `backend/internal/lists/` | `backend/internal/lists/handler_test.go` | `frontend/e2e/lists.spec.ts` |
-| `backend/internal/platform/` | `backend/internal/platform/config/config_test.go` | – |
+| `backend/internal/entries/` | `backend/internal/entries/handler_test.go` | `frontend/e2e/entries.spec.ts` |
+| `backend/internal/platform/` | `backend/internal/platform/config/config_test.go`, `backend/internal/platform/validate/validate_test.go` | – |
 | `frontend/src/api/` | `frontend/src/api/problem.test.ts` | – |
 | `frontend/src/features/lists/` | – | `frontend/e2e/lists.spec.ts` |
+| `frontend/src/features/entries/` | – | `frontend/e2e/entries.spec.ts` |
 
 ## End-to-end
 
@@ -54,7 +56,11 @@ commands of the project.
   `{"ok": false, "error": {"code", "message", "fix"}}`.
 - Environment check: `make seed-doctor`. Error codes: `CONFIG_MISSING` (set `DATABASE_URL`),
   `DB_UNREACHABLE` (`docker compose up -d --wait db`), `MIGRATION_FAILED`.
-- Named states: `empty` (no lists), `with-lists` (the lists `Einkauf`, `Arbeit`, `Haushalt`).
+- Named states: `empty` (no lists, no entries), `with-lists` (the lists `Einkauf`, `Arbeit`,
+  `Haushalt` without entries), `with-entries` (the same lists with three entries each, the
+  first one done). The JSON lists every id.
+- A spec file that needs lists runs `make seed STATE=with-lists` in `test.beforeAll` after the
+  global setup emptied the data.
 - Never write rows by hand, never call internal endpoints, never click through the application to
   make data that the command makes. A state the command lacks goes into a spec; the command is
   extended there.
@@ -63,4 +69,4 @@ commands of the project.
 
 - Automated: `make check`, `make e2e` and the tests of the touched areas (table Areas).
 - Browser checks: `make dev` and `http://localhost:5173`, or `docker compose up --build` and
-  `http://localhost:8080`; no login; test data with `make seed STATE=with-lists`.
+  `http://localhost:8080`; no login; test data with `make seed STATE=with-entries`.

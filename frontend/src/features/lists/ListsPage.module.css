@@ -78,3 +78,9 @@
   border-radius: var(--radius-s);
   background: var(--color-surface);
 }
+
+.itemTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  margin: 0;
+}

@@ -29,6 +29,12 @@ type resultError struct {
 
 var titles = []string{"Einkauf", "Arbeit", "Haushalt"}
 
+var entryTitles = map[string][]string{
+	"Einkauf":  {"Milch", "Brot", "Äpfel"},
+	"Arbeit":   {"Bericht schreiben", "Rechnung prüfen", "Termin planen"},
+	"Haushalt": {"Staubsaugen", "Wäsche waschen", "Blumen gießen"},
+}
+
 func main() {
 	state := flag.String("state", "", "test data state: empty or with-lists")
 	doctor := flag.Bool("doctor", false, "check the database and the migrations")
@@ -65,34 +71,93 @@ func run(ctx context.Context, state string, doctor bool) result {
 	case "empty":
 		return empty(ctx, pool)
 	case "with-lists":
-		return withLists(ctx, pool)
+		return withLists(ctx, pool, false)
+	case "with-entries":
+		return withLists(ctx, pool, true)
 	default:
-		return fail("UNKNOWN_STATE", fmt.Sprintf("state %q is not known", state), "use --state empty or --state with-lists")
+		return fail("UNKNOWN_STATE", fmt.Sprintf("state %q is not known", state), "use --state empty, --state with-lists or --state with-entries")
 	}
 }
 
+func clear(ctx context.Context, queries *store.Queries) error {
+	if err := queries.DeleteAllEntries(ctx); err != nil {
+		return err
+	}
+	return queries.DeleteAllLists(ctx)
+}
+
+func inTransaction(ctx context.Context, pool *pgxpool.Pool, work func(queries *store.Queries) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	if err := work(store.New(tx)); err != nil {
+		_ = tx.Rollback(ctx)
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func empty(ctx context.Context, pool *pgxpool.Pool) result {
-	if err := store.New(pool).DeleteAllLists(ctx); err != nil {
+	err := inTransaction(ctx, pool, func(queries *store.Queries) error { return clear(ctx, queries) })
+	if err != nil {
 		return fail("DB_ERROR", err.Error(), "")
 	}
 	return result{Ok: true, Data: map[string]any{"state": "empty", "lists": []any{}}}
 }
 
-func withLists(ctx context.Context, pool *pgxpool.Pool) result {
-	queries := store.New(pool)
-	if err := queries.DeleteAllLists(ctx); err != nil {
+type seededEntry struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Done  bool   `json:"done"`
+}
+
+type seededList struct {
+	ID      string        `json:"id"`
+	Title   string        `json:"title"`
+	Entries []seededEntry `json:"entries"`
+}
+
+func withLists(ctx context.Context, pool *pgxpool.Pool, withEntries bool) result {
+	now := time.Now().UTC()
+	created := make([]seededList, 0, len(titles))
+	err := inTransaction(ctx, pool, func(queries *store.Queries) error {
+		if err := clear(ctx, queries); err != nil {
+			return err
+		}
+		for _, title := range titles {
+			id, err := queries.CreateList(ctx, store.CreateListParams{ID: uuid.Must(uuid.NewV7()), Title: title, Now: now})
+			if err != nil {
+				return err
+			}
+			list := seededList{ID: id.String(), Title: title, Entries: []seededEntry{}}
+			if withEntries {
+				for i, entryTitle := range entryTitles[title] {
+					entryID, err := queries.CreateEntry(ctx, store.CreateEntryParams{ID: uuid.Must(uuid.NewV7()), ListID: id, Title: entryTitle, Now: now})
+					if err != nil {
+						return err
+					}
+					done := i == 0
+					if done {
+						if _, err := queries.UpdateEntry(ctx, store.UpdateEntryParams{ID: entryID, Done: &done, Now: now}); err != nil {
+							return err
+						}
+					}
+					list.Entries = append(list.Entries, seededEntry{ID: entryID.String(), Title: entryTitle, Done: done})
+				}
+			}
+			created = append(created, list)
+		}
+		return nil
+	})
+	if err != nil {
 		return fail("DB_ERROR", err.Error(), "")
 	}
-	now := time.Now().UTC()
-	created := make([]map[string]string, 0, len(titles))
-	for _, title := range titles {
-		id, err := queries.CreateList(ctx, store.CreateListParams{ID: uuid.Must(uuid.NewV7()), Title: title, Now: now})
-		if err != nil {
-			return fail("DB_ERROR", err.Error(), "")
-		}
-		created = append(created, map[string]string{"id": id.String(), "title": title})
+	state := "with-lists"
+	if withEntries {
+		state = "with-entries"
 	}
-	return result{Ok: true, Data: map[string]any{"state": "with-lists", "lists": created}}
+	return result{Ok: true, Data: map[string]any{"state": state, "lists": created}}
 }
 
 func fail(code, message, fix string) result {

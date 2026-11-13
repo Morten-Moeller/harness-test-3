@@ -1,7 +1,11 @@
 openapi: 3.0.3
 info:
   title: Todo API
-  description: Lists and entries of the todo application. Source of the generated types in backend/internal/api and frontend/src/api.
+  description: >-
+    Lists and entries of the todo application. Source of the generated types in
+    backend/internal/api and frontend/src/api. Convention of every list endpoint (A2.6): the
+    complete result as { items: [...] } ordered by position, without paging, sorting or filter
+    parameters; the data of one person stays small (ADR 0003).
   version: "1"
 servers:
   - url: /
@@ -51,6 +55,121 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/entries:
+    get:
+      operationId: listEntries
+      summary: Entries of every list, in position order per list
+      responses:
+        "200":
+          description: The entries, ordered by list and position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryPage"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/lists/{listId}/entries:
+    post:
+      operationId: createEntry
+      summary: Create an entry in a list
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEntry"
+      responses:
+        "201":
+          description: The entry was created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Created"
+        "400":
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: The list does not exist
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateEntry
+      summary: Change the title or the done state of an entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEntry"
+      responses:
+        "204":
+          description: The entry was changed
+        "400":
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: The entry does not exist
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteEntry
+      summary: Delete an entry
+      responses:
+        "204":
+          description: The entry was deleted
+        "404":
+          description: The entry does not exist
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   schemas:
     List:
@@ -87,6 +206,55 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+    Entry:
+      type: object
+      required: [id, listId, title, done, position, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        listId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        done:
+          type: boolean
+        position:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    EntryPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Entry"
+    CreateEntry:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+    UpdateEntry:
+      type: object
+      description: At least one of title and done
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        done:
+          type: boolean
     Created:
       type: object
       required: [id]

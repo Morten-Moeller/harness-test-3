@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -34,6 +35,11 @@ func (e ProblemErrorCode) Valid() bool {
 	}
 }
 
+// CreateEntry defines model for CreateEntry.
+type CreateEntry struct {
+	Title string `json:"title"`
+}
+
 // CreateList defines model for CreateList.
 type CreateList struct {
 	Title string `json:"title"`
@@ -42,6 +48,22 @@ type CreateList struct {
 // Created defines model for Created.
 type Created struct {
 	Id openapi_types.UUID `json:"id"`
+}
+
+// Entry defines model for Entry.
+type Entry struct {
+	CreatedAt time.Time          `json:"createdAt"`
+	Done      bool               `json:"done"`
+	Id        openapi_types.UUID `json:"id"`
+	ListId    openapi_types.UUID `json:"listId"`
+	Position  int32              `json:"position"`
+	Title     string             `json:"title"`
+	UpdatedAt time.Time          `json:"updatedAt"`
+}
+
+// EntryPage defines model for EntryPage.
+type EntryPage struct {
+	Items []Entry `json:"items"`
 }
 
 // List defines model for List.
@@ -71,17 +93,41 @@ type Problem struct {
 // ProblemErrorCode defines model for Problem.ErrorCode.
 type ProblemErrorCode string
 
+// UpdateEntry At least one of title and done
+type UpdateEntry struct {
+	Done  *bool   `json:"done,omitempty"`
+	Title *string `json:"title,omitempty"`
+}
+
+// UpdateEntryJSONRequestBody defines body for UpdateEntry for application/json ContentType.
+type UpdateEntryJSONRequestBody = UpdateEntry
+
 // CreateListJSONRequestBody defines body for CreateList for application/json ContentType.
 type CreateListJSONRequestBody = CreateList
 
+// CreateEntryJSONRequestBody defines body for CreateEntry for application/json ContentType.
+type CreateEntryJSONRequestBody = CreateEntry
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListEntries Entries of every list, in position order per list
+	// (GET /api/entries)
+	ListEntries(w http.ResponseWriter, r *http.Request)
+	// DeleteEntry Delete an entry
+	// (DELETE /api/entries/{entryId})
+	DeleteEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID)
+	// UpdateEntry Change the title or the done state of an entry
+	// (PATCH /api/entries/{entryId})
+	UpdateEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID)
 	// ListLists Lists in position order
 	// (GET /api/lists)
 	ListLists(w http.ResponseWriter, r *http.Request)
 	// CreateList Create a list
 	// (POST /api/lists)
 	CreateList(w http.ResponseWriter, r *http.Request)
+	// CreateEntry Create an entry in a list
+	// (POST /api/lists/{listId}/entries)
+	CreateEntry(w http.ResponseWriter, r *http.Request, listId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -92,6 +138,72 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListEntries operation middleware
+func (siw *ServerInterfaceWrapper) ListEntries(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntries(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteEntry operation middleware
+func (siw *ServerInterfaceWrapper) DeleteEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteEntry(w, r, entryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateEntry operation middleware
+func (siw *ServerInterfaceWrapper) UpdateEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateEntry(w, r, entryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListLists operation middleware
 func (siw *ServerInterfaceWrapper) ListLists(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +224,32 @@ func (siw *ServerInterfaceWrapper) CreateList(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateList(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateEntry operation middleware
+func (siw *ServerInterfaceWrapper) CreateEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateEntry(w, r, listId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -243,6 +381,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/lists", wrapper.ListLists)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/lists", wrapper.CreateList)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/entries", wrapper.ListEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/lists/{listId}/entries", wrapper.CreateEntry)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/entries/{entryId}", wrapper.DeleteEntry)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/entries/{entryId}", wrapper.UpdateEntry)
 
 	return m
 }

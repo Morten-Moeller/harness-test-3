@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { I18nextProvider } from 'react-i18next'
 
 import { ApiContext, createApiClient } from '../api/client'
+import { EntryList } from '../features/entries/EntryList'
 import { ListsPage } from '../features/lists/ListsPage'
 import type { AppConfig } from './config'
 import { createI18n } from './i18n'
@@ -16,7 +17,7 @@ export function App({ config }: { config: AppConfig }) {
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <ApiContext.Provider value={api}>
-          <ListsPage />
+          <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
         </ApiContext.Provider>
       </QueryClientProvider>
     </I18nextProvider>

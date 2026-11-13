@@ -1,11 +1,11 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { errorCodeOf } from '../../api/problem'
 import styles from './ListsPage.module.css'
-import { useCreateList, useLists } from './listsApi'
+import { type List, useCreateList, useLists } from './listsApi'
 
-export function ListsPage() {
+export function ListsPage({ renderList }: { renderList?: (list: List) => ReactNode }) {
   const { t } = useTranslation('lists')
   const lists = useLists()
   const createList = useCreateList()
@@ -71,7 +71,10 @@ export function ListsPage() {
           <ul className={styles.list} data-testid="lists">
             {lists.data.map((list) => (
               <li key={list.id} className={styles.item} data-testid="list-item">
-                {list.title}
+                <h2 className={styles.itemTitle} data-testid="list-title">
+                  {list.title}
+                </h2>
+                {renderList?.(list)}
               </li>
             ))}
           </ul>

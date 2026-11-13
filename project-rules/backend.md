@@ -15,11 +15,14 @@ sources: [backend/**, contracts/api/openapi.yaml]
 
 - No layering: a feature package under `backend/internal/<feature>/` holds its handlers and
   calls the generated queries directly (A1.2; ADR 0001).
-- Platform packages under `backend/internal/platform/` (`config`, `db`, `problem`,
-  `requestlog`, `server`, `testdb`) hold no business term and import no feature (A1.6).
+- Platform packages under `backend/internal/platform/` (`config`, `db`, `httpjson`, `problem`,
+  `requestlog`, `server`, `testdb`, `validate`) hold no business term and import no feature
+  (A1.6). A handler reads its body with `httpjson.Decode`, checks titles with
+  `validate.Title` and answers with `httpjson.Write` or `problem.Write`.
 - Generated and never edited by hand: `backend/internal/api/` from the contract,
   `backend/internal/store/` from `backend/db/queries/*.sql` (`make generate`, gate `drift`).
-- Entry points: `backend/cmd/server` (the API), `backend/cmd/seed` (test data).
+- Entry points: `backend/cmd/server` (the API; it embeds the feature handlers into one
+  `api.ServerInterface`), `backend/cmd/seed` (test data).
 
 ## Data
 
