@@ -1,7 +1,7 @@
 ---
 id: "0004"
 title: Listen umbenennen und löschen
-status: approved
+status: Review
 risk: high
 adrs: ["0005"]
 owner: Morten Möller

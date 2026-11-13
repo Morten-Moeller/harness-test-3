@@ -1,4 +1,9 @@
 {
+  "cancel": "Abbrechen",
+  "confirm": "Bestätigen",
+  "confirmDelete": "Liste mit allen Einträgen löschen?",
+  "delete": "Löschen",
+  "editTitle": "Titel der Liste",
   "empty": "Noch keine Listen.",
   "errors": {
     "notFound": "Nicht gefunden.",
@@ -10,5 +15,7 @@
     "titleLabel": "Neue Liste"
   },
   "loading": "Lädt …",
+  "rename": "Umbenennen",
+  "save": "Speichern",
   "title": "Listen"
 }

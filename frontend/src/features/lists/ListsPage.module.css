@@ -43,12 +43,24 @@
   cursor: pointer;
 }
 
-.button:disabled {
+.secondary {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-s);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:disabled,
+.secondary:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
 .button:focus-visible,
+.secondary:focus-visible,
 .input:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
@@ -79,8 +91,38 @@
   background: var(--color-surface);
 }
 
+.itemHeader,
+.editForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.itemHeader .error,
+.editForm .error {
+  flex-basis: 100%;
+}
+
 .itemTitle {
+  flex: 1;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
+  margin: 0;
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-s);
+}
+
+.confirmText {
+  flex: 1;
   margin: 0;
 }

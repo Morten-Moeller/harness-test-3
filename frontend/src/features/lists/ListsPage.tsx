@@ -1,7 +1,8 @@
 import { type FormEvent, type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { errorCodeOf } from '../../api/problem'
+import { errorKey } from './errorKey'
+import { ListItem } from './ListItem'
 import styles from './ListsPage.module.css'
 import { type List, useCreateList, useLists } from './listsApi'
 
@@ -16,19 +17,7 @@ export function ListsPage({ renderList }: { renderList?: (list: List) => ReactNo
     createList.mutate(title, { onSuccess: () => setTitle('') })
   }
 
-  const errorText = (() => {
-    if (!createList.isError) {
-      return null
-    }
-    switch (errorCodeOf(createList.error)) {
-      case 'VALIDATION_FAILED':
-        return t('errors.validationFailed')
-      case 'NOT_FOUND':
-        return t('errors.notFound')
-      default:
-        return t('errors.unknown')
-    }
-  })()
+  const errorText = createList.isError ? t(errorKey(createList.error)) : null
 
   return (
     <main className={styles.page}>
@@ -70,12 +59,9 @@ export function ListsPage({ renderList }: { renderList?: (list: List) => ReactNo
         ) : (
           <ul className={styles.list} data-testid="lists">
             {lists.data.map((list) => (
-              <li key={list.id} className={styles.item} data-testid="list-item">
-                <h2 className={styles.itemTitle} data-testid="list-title">
-                  {list.title}
-                </h2>
+              <ListItem key={list.id} list={list}>
                 {renderList?.(list)}
-              </li>
+              </ListItem>
             ))}
           </ul>
         ))}
