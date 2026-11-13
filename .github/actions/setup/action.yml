@@ -43,7 +43,7 @@ runs:
     - name: Install osv-scanner
       shell: bash
       env:
-        OSV_VERSION: v2.0.2
+        OSV_VERSION: v2.7.1
       run: |
         curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" -o /usr/local/bin/osv-scanner
         chmod +x /usr/local/bin/osv-scanner
