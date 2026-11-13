@@ -1,14 +1,14 @@
 ---
 id: "0006"
 title: Listen per Drag and Drop anordnen
-status: Review
+status: done
 risk: high
 adrs: ["0006", "0007"]
 owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
-pr: ""
-note: "freigegeben in der Session"
+pr: "#9"
+note: "alle Kriterien erfüllt; A4 Maus im Browser der Session nicht prüfbar, Playwright grün"
 ---
 
 # Listen per Drag and Drop anordnen
