@@ -107,10 +107,10 @@ test('removes an entry from view when it is checked off', async ({ page }) => {
   await expect(item).toBeVisible()
   await expect(card.getByTestId('new-entry-input')).toHaveValue('')
 
-  await item.getByTestId('entry-edit').click()
+  await item.getByTestId('entry-title').dblclick()
   const editForm = card.getByTestId('entry-edit-form')
   await editForm.getByTestId('entry-title-input').fill(newTitle)
-  await editForm.getByTestId('entry-save').click()
+  await editForm.getByTestId('entry-title-input').press('Enter')
   const renamed = card.getByTestId('entry-item').filter({ hasText: newTitle })
   await expect(renamed).toBeVisible()
 

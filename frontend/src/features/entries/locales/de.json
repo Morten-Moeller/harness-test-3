@@ -1,6 +1,5 @@
 {
-  "cancel": "Abbrechen",
-  "delete": "Löschen",
+  "deleteEntry": "Eintrag löschen",
   "dnd": {
     "cancelled": "Verschieben von {{title}} abgebrochen.",
     "dropped": "{{title}} an Position {{position}} abgelegt.",
@@ -9,7 +8,7 @@
     "noTarget": "{{title}} ist über keinem Ziel.",
     "pickedUp": "{{title}} aufgenommen."
   },
-  "edit": "Bearbeiten",
+  "editEntry": "Eintrag bearbeiten: {{title}}",
   "editTitle": "Titel des Eintrags",
   "empty": "Keine Einträge.",
   "emptyOpen": "Keine offenen Einträge.",
@@ -25,6 +24,5 @@
   },
   "handle": "Eintrag verschieben",
   "loading": "Lädt …",
-  "openOnly": "Nur offene Einträge",
-  "save": "Speichern"
+  "openOnly": "Nur offene Einträge"
 }

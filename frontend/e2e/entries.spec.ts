@@ -52,16 +52,17 @@ test('edits and deletes an entry', async ({ page }) => {
   await expect(card).toBeVisible()
 
   const item = await addEntry(card, title)
-  await item.getByTestId('entry-edit').click()
+  await item.getByTestId('entry-title').dblclick()
   const editForm = card.getByTestId('entry-edit-form')
   await expect(editForm.getByTestId('entry-title-input')).toBeFocused()
   await editForm.getByTestId('entry-title-input').fill(newTitle)
-  await editForm.getByTestId('entry-save').click()
+  await editForm.getByTestId('entry-title-input').press('Enter')
   const renamed = card.getByTestId('entry-item').filter({ hasText: newTitle })
   await expect(renamed).toBeVisible()
   await expect(card.getByTestId('entry-item').filter({ hasText: title })).toHaveCount(0)
 
-  await renamed.getByTestId('entry-delete').click()
+  await renamed.getByTestId('entry-title').dblclick()
+  await card.getByTestId('entry-edit-form').getByTestId('entry-delete').click()
   await expect(card.getByTestId('entry-item').filter({ hasText: newTitle })).toHaveCount(0)
 })
 

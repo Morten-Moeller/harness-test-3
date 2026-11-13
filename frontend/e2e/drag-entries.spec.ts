@@ -160,12 +160,13 @@ test('keeps checkbox, edit and delete working with the handle present', async ({
   await item.getByTestId('entry-done').click()
   await expect(item.getByTestId('entry-done')).toBeChecked()
 
-  await item.getByTestId('entry-edit').click()
+  await item.getByTestId('entry-title').dblclick()
   const editForm = haushalt.getByTestId('entry-edit-form')
   await expect(editForm.getByTestId('entry-title-input')).toBeFocused()
-  await editForm.getByTestId('entry-cancel').click()
+  await editForm.getByTestId('entry-title-input').press('Escape')
   await expect(item.getByTestId('entry-title')).toHaveText('Blumen gießen')
 
-  await item.getByTestId('entry-delete').click()
+  await item.getByTestId('entry-title').dblclick()
+  await editForm.getByTestId('entry-delete').click()
   await expect(haushalt.getByTestId('entry-item').filter({ hasText: 'Blumen gießen' })).toHaveCount(0)
 })

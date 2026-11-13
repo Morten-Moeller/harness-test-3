@@ -91,16 +91,14 @@
   background: var(--color-surface);
 }
 
-.itemHeader,
-.editForm {
+.itemHeader {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
 
-.itemHeader .error,
-.editForm .error {
+.itemHeader .error {
   flex-basis: 100%;
 }
 

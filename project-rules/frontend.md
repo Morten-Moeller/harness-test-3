@@ -35,6 +35,12 @@ sources: [frontend/src/**, frontend/vite.config.ts, frontend/eslint.config.js, f
 
 ## UI
 
+- Shared controls without business terms live in `frontend/src/ui/` (`InlineTitle`,
+  `TrashIcon`); features import from there, `ui/` imports no feature.
+- Titles are edited in place: double click or Enter on the focused title opens the field, Enter
+  saves, Escape discards, leaving the field saves. Delete controls are icon buttons with `title`
+  and `aria-label`, visible only while editing (`InlineTitle` `actions`).
+
 - No component library. Colors, spacing, radii and type come from the tokens in
   `frontend/src/styles/tokens.css`; a component uses `var(--token)` only, never a literal value
   (A7.4). Token values are the design decision of the person; report, do not change.
