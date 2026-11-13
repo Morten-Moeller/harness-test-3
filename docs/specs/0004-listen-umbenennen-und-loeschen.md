@@ -1,14 +1,14 @@
 ---
 id: "0004"
 title: Listen umbenennen und löschen
-status: Review
+status: done
 risk: high
 adrs: ["0005"]
 owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
-pr: ""
-note: "freigegeben in der Session"
+pr: "#7"
+note: "alle Kriterien erfüllt"
 ---
 
 # Listen umbenennen und löschen
