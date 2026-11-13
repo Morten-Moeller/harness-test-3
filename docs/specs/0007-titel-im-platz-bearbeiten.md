@@ -1,14 +1,14 @@
 ---
 id: "0007"
 title: Titel per Doppelklick oder Enter bearbeiten, Löschen als Icon in der Bearbeitung
-status: Review
+status: done
 risk: medium
 adrs: []
 owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
-pr: ""
-note: "freigegeben in der Session"
+pr: "#10"
+note: "alle Kriterien erfüllt"
 ---
 
 # Titel per Doppelklick oder Enter bearbeiten, Löschen als Icon in der Bearbeitung
