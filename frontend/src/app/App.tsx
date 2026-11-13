@@ -4,6 +4,8 @@ import { I18nextProvider } from 'react-i18next'
 
 import { ApiContext, createApiClient } from '../api/client'
 import { EntryList } from '../features/entries/EntryList'
+import { OpenOnlyProvider } from '../features/entries/openOnly'
+import { OpenOnlyToggle } from '../features/entries/OpenOnlyToggle'
 import { ListsPage } from '../features/lists/ListsPage'
 import type { AppConfig } from './config'
 import { createI18n } from './i18n'
@@ -17,7 +19,10 @@ export function App({ config }: { config: AppConfig }) {
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <ApiContext.Provider value={api}>
-          <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
+          <OpenOnlyProvider>
+            <OpenOnlyToggle />
+            <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
+          </OpenOnlyProvider>
         </ApiContext.Provider>
       </QueryClientProvider>
     </I18nextProvider>

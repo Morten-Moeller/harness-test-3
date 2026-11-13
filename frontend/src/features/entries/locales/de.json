@@ -4,6 +4,7 @@
   "edit": "Bearbeiten",
   "editTitle": "Titel des Eintrags",
   "empty": "Keine Einträge.",
+  "emptyOpen": "Keine offenen Einträge.",
   "errors": {
     "notFound": "Nicht gefunden. Bitte Seite neu laden.",
     "unknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -14,5 +15,6 @@
     "titleLabel": "Neuer Eintrag"
   },
   "loading": "Lädt …",
+  "openOnly": "Nur offene Einträge",
   "save": "Speichern"
 }

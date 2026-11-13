@@ -5,11 +5,13 @@ import { useCreateEntry, useEntries } from './entriesApi'
 import { errorKey } from './errorKey'
 import { EntryItem } from './EntryItem'
 import styles from './EntryList.module.css'
+import { useOpenOnly } from './openOnly'
 
 export function EntryList({ listId }: { listId: string }) {
   const { t } = useTranslation('entries')
   const entries = useEntries()
   const createEntry = useCreateEntry()
+  const { openOnly } = useOpenOnly()
   const [title, setTitle] = useState('')
   const inputId = `new-entry-${listId}`
 
@@ -19,6 +21,7 @@ export function EntryList({ listId }: { listId: string }) {
   }
 
   const mine = entries.data?.filter((entry) => entry.listId === listId) ?? []
+  const visible = openOnly ? mine.filter((entry) => !entry.done) : mine
 
   return (
     <section className={styles.section} data-testid="entry-list">
@@ -33,9 +36,13 @@ export function EntryList({ listId }: { listId: string }) {
           <p className={styles.note} data-testid="entries-empty">
             {t('empty')}
           </p>
+        ) : visible.length === 0 ? (
+          <p className={styles.note} data-testid="entries-empty-open">
+            {t('emptyOpen')}
+          </p>
         ) : (
           <ul className={styles.list} data-testid="entries">
-            {mine.map((entry) => (
+            {visible.map((entry) => (
               <EntryItem key={entry.id} entry={entry} />
             ))}
           </ul>

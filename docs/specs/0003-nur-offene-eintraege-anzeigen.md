@@ -1,7 +1,7 @@
 ---
 id: "0003"
 title: Nur offene Einträge anzeigen
-status: approved
+status: Review
 risk: medium
 adrs: []
 owner: Morten Möller
