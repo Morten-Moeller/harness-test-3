@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { I18nextProvider } from 'react-i18next'
 
 import { ApiContext, createApiClient } from '../api/client'
+import { EntriesDndProvider } from '../features/entries/EntriesDndProvider'
 import { EntryList } from '../features/entries/EntryList'
 import { OpenOnlyProvider } from '../features/entries/openOnly'
 import { OpenOnlyToggle } from '../features/entries/OpenOnlyToggle'
@@ -21,7 +22,9 @@ export function App({ config }: { config: AppConfig }) {
         <ApiContext.Provider value={api}>
           <OpenOnlyProvider>
             <OpenOnlyToggle />
-            <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
+            <EntriesDndProvider>
+              <ListsPage renderList={(list) => <EntryList listId={list.id} />} />
+            </EntriesDndProvider>
           </OpenOnlyProvider>
         </ApiContext.Provider>
       </QueryClientProvider>

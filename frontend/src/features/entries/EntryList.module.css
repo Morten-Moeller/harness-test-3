@@ -20,6 +20,66 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) 0;
+  background: var(--color-surface);
+}
+
+.dragging {
+  opacity: 0.4;
+  outline: 2px dashed var(--color-primary);
+  outline-offset: 2px;
+}
+
+.overlay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-s);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: grabbing;
+}
+
+.overlayHandle::before {
+  content: "\2807\2807";
+  color: var(--color-text-muted);
+}
+
+.overlayDone {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.over {
+  outline: 2px dashed var(--color-border);
+  outline-offset: var(--space-1);
+  border-radius: var(--radius-s);
+}
+
+.handle {
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle::before {
+  content: "\2807\2807";
+}
+
+.handle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.handle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .check {

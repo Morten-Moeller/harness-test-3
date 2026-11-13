@@ -330,3 +330,146 @@ func TestDeletingAListRemovesItsEntries(t *testing.T) {
 		t.Fatalf("entries of the deleted list still stored: %+v", got)
 	}
 }
+
+func orderBody(ids ...uuid.UUID) string {
+	quoted := make([]string, 0, len(ids))
+	for _, id := range ids {
+		quoted = append(quoted, fmt.Sprintf("%q", id.String()))
+	}
+	return fmt.Sprintf(`{"entryIds": [%s]}`, strings.Join(quoted, ", "))
+}
+
+func reorder(t *testing.T, srv *httptest.Server, listID uuid.UUID, body string) *http.Response {
+	t.Helper()
+	return call(t, srv, http.MethodPut, "/api/lists/"+listID.String()+"/entries/order", body)
+}
+
+func idsOf(entries []api.Entry) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(entries))
+	for _, entry := range entries {
+		ids = append(ids, entry.Id)
+	}
+	return ids
+}
+
+func TestReordersTheEntriesOfAList(t *testing.T) {
+	srv := newServer(t)
+	listID := createList(t)
+	a := createEntry(t, srv, listID, "a")
+	b := createEntry(t, srv, listID, "b")
+	c := createEntry(t, srv, listID, "c")
+	before := findEntry(t, srv, listID, c)
+
+	res := reorder(t, srv, listID, orderBody(c, a, b))
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("want 204, got %d", res.StatusCode)
+	}
+	mine := entriesOf(t, srv, listID)
+	if got := idsOf(mine); len(got) != 3 || got[0] != c || got[1] != a || got[2] != b {
+		t.Fatalf("want order [c a b], got %v", got)
+	}
+	for i, entry := range mine {
+		if entry.Position != int32(i+1) {
+			t.Fatalf("want position %d for %s, got %d", i+1, entry.Title, entry.Position)
+		}
+	}
+	if !mine[0].UpdatedAt.After(before.UpdatedAt) {
+		t.Fatalf("want a later updated_at, got %v then %v", before.UpdatedAt, mine[0].UpdatedAt)
+	}
+}
+
+func TestMovesAnEntryIntoAnotherListAtTheGivenIndex(t *testing.T) {
+	srv := newServer(t)
+	source := createList(t)
+	target := createList(t)
+	s1 := createEntry(t, srv, source, "s1")
+	s2 := createEntry(t, srv, source, "s2")
+	s3 := createEntry(t, srv, source, "s3")
+	t1 := createEntry(t, srv, target, "t1")
+	t2 := createEntry(t, srv, target, "t2")
+
+	res := reorder(t, srv, target, orderBody(t1, s2, t2))
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("want 204, got %d", res.StatusCode)
+	}
+	if got := idsOf(entriesOf(t, srv, target)); len(got) != 3 || got[0] != t1 || got[1] != s2 || got[2] != t2 {
+		t.Fatalf("want target order [t1 s2 t2], got %v", got)
+	}
+	moved := findEntry(t, srv, target, s2)
+	if moved.ListId != target || moved.Position != 2 {
+		t.Fatalf("want s2 in target at position 2, got %+v", moved)
+	}
+	if got := idsOf(entriesOf(t, srv, source)); len(got) != 2 || got[0] != s1 || got[1] != s3 {
+		t.Fatalf("want source order [s1 s3], got %v", got)
+	}
+}
+
+func TestMovesAnEntryIntoAnEmptyList(t *testing.T) {
+	srv := newServer(t)
+	source := createList(t)
+	target := createList(t)
+	id := createEntry(t, srv, source, "alone")
+
+	res := reorder(t, srv, target, orderBody(id))
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("want 204, got %d", res.StatusCode)
+	}
+	moved := findEntry(t, srv, target, id)
+	if moved.Position != 1 {
+		t.Fatalf("want position 1, got %+v", moved)
+	}
+	if got := entriesOf(t, srv, source); len(got) != 0 {
+		t.Fatalf("source still has entries: %+v", got)
+	}
+}
+
+func TestAnswers404ForAnUnknownEntryIdAndChangesNothing(t *testing.T) {
+	srv := newServer(t)
+	listID := createList(t)
+	a := createEntry(t, srv, listID, "a")
+	b := createEntry(t, srv, listID, "b")
+
+	res := reorder(t, srv, listID, orderBody(b, uuid.New(), a))
+
+	assertProblem(t, res, http.StatusNotFound, problem.NotFound)
+	if got := idsOf(entriesOf(t, srv, listID)); len(got) != 2 || got[0] != a || got[1] != b {
+		t.Fatalf("order changed although the request failed: %v", got)
+	}
+}
+
+func TestAnswers404ForAnUnknownListInReorder(t *testing.T) {
+	srv := newServer(t)
+	listID := createList(t)
+	a := createEntry(t, srv, listID, "a")
+
+	res := reorder(t, srv, uuid.New(), orderBody(a))
+
+	assertProblem(t, res, http.StatusNotFound, problem.NotFound)
+	if after := findEntry(t, srv, listID, a); after.ListId != listID {
+		t.Fatalf("entry moved although the list does not exist: %+v", after)
+	}
+}
+
+func TestRejectsAnEmptyOrDuplicateOrder(t *testing.T) {
+	srv := newServer(t)
+	listID := createList(t)
+	a := createEntry(t, srv, listID, "a")
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "rejects an empty order", body: `{"entryIds": []}`},
+		{name: "rejects a missing field", body: `{}`},
+		{name: "rejects duplicate ids", body: orderBody(a, a)},
+		{name: "rejects an id that is not a uuid", body: `{"entryIds": ["nope"]}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := reorder(t, srv, listID, tc.body)
+			assertProblem(t, res, http.StatusBadRequest, problem.ValidationFailed)
+		})
+	}
+}

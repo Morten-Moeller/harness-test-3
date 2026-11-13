@@ -10,3 +10,4 @@ Wann ein ADR nötig ist: `harness/policies/adr.md`. Format MADR aus `0000-templa
 | 0003 | Eine Person ohne Anmeldung, keine Identität und keine Besitzerprüfung | accepted | 2026-11-13 |
 | 0004 | Betrieb lokal mit Docker Compose, kein Deployment | accepted | 2026-11-13 |
 | 0005 | Einträge als eigene Tabelle mit Listenbezug, ein Endpunkt für alle Einträge | accepted | 2026-11-13 |
+| 0006 | Reihenfolge von Einträgen und Listen als vollständige Id-Liste je Container setzen | accepted | 2026-11-13 |

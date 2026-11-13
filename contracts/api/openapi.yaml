@@ -170,6 +170,44 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/lists/{listId}/entries/order:
+    put:
+      operationId: reorderEntries
+      summary: Set the order of the entries of a list; an entry of another list moves into this list
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryOrder"
+      responses:
+        "204":
+          description: The order was set
+        "400":
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: The list or an entry does not exist; nothing changed
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/entries/{entryId}:
     parameters:
       - name: entryId
@@ -319,6 +357,18 @@ components:
           maxLength: 200
         done:
           type: boolean
+    EntryOrder:
+      type: object
+      description: The complete order of the entries of a list; position becomes index plus one
+      required: [entryIds]
+      properties:
+        entryIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: string
+            format: uuid
     Created:
       type: object
       required: [id]

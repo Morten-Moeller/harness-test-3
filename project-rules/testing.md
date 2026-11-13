@@ -35,7 +35,7 @@ commands of the project.
 | `backend/internal/platform/` | `backend/internal/platform/config/config_test.go`, `backend/internal/platform/validate/validate_test.go` | – |
 | `frontend/src/api/` | `frontend/src/api/problem.test.ts` | – |
 | `frontend/src/features/lists/` | – | `frontend/e2e/lists.spec.ts` |
-| `frontend/src/features/entries/` | `frontend/src/features/entries/openOnly.test.ts` | `frontend/e2e/entries.spec.ts`, `frontend/e2e/open-only.spec.ts` |
+| `frontend/src/features/entries/` | `frontend/src/features/entries/openOnly.test.ts`, `frontend/src/features/entries/order.test.ts` | `frontend/e2e/entries.spec.ts`, `frontend/e2e/open-only.spec.ts`, `frontend/e2e/drag-entries.spec.ts` |
 
 ## End-to-end
 

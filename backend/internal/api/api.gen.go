@@ -61,6 +61,11 @@ type Entry struct {
 	UpdatedAt time.Time          `json:"updatedAt"`
 }
 
+// EntryOrder The complete order of the entries of a list; position becomes index plus one
+type EntryOrder struct {
+	EntryIds []openapi_types.UUID `json:"entryIds"`
+}
+
 // EntryPage defines model for EntryPage.
 type EntryPage struct {
 	Items []Entry `json:"items"`
@@ -116,6 +121,9 @@ type UpdateListJSONRequestBody = UpdateList
 // CreateEntryJSONRequestBody defines body for CreateEntry for application/json ContentType.
 type CreateEntryJSONRequestBody = CreateEntry
 
+// ReorderEntriesJSONRequestBody defines body for ReorderEntries for application/json ContentType.
+type ReorderEntriesJSONRequestBody = EntryOrder
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// ListEntries Entries of every list, in position order per list
@@ -142,6 +150,9 @@ type ServerInterface interface {
 	// CreateEntry Create an entry in a list
 	// (POST /api/lists/{listId}/entries)
 	CreateEntry(w http.ResponseWriter, r *http.Request, listId openapi_types.UUID)
+	// ReorderEntries Set the order of the entries of a list; an entry of another list moves into this list
+	// (PUT /api/lists/{listId}/entries/order)
+	ReorderEntries(w http.ResponseWriter, r *http.Request, listId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -325,6 +336,32 @@ func (siw *ServerInterfaceWrapper) CreateEntry(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ReorderEntries operation middleware
+func (siw *ServerInterfaceWrapper) ReorderEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderEntries(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -451,6 +488,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/lists/{listId}", wrapper.UpdateList)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/entries", wrapper.ListEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/lists/{listId}/entries", wrapper.CreateEntry)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/lists/{listId}/entries/order", wrapper.ReorderEntries)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/entries/{entryId}", wrapper.DeleteEntry)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/entries/{entryId}", wrapper.UpdateEntry)
 

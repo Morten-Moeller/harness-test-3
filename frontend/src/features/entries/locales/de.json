@@ -1,6 +1,14 @@
 {
   "cancel": "Abbrechen",
   "delete": "Löschen",
+  "dnd": {
+    "cancelled": "Verschieben von {{title}} abgebrochen.",
+    "dropped": "{{title}} an Position {{position}} abgelegt.",
+    "instructions": "Zum Aufnehmen die Leertaste drücken, mit den Pfeiltasten bewegen, mit der Leertaste ablegen, mit Escape abbrechen.",
+    "movedOver": "{{title}} ist über Position {{position}}.",
+    "noTarget": "{{title}} ist über keinem Ziel.",
+    "pickedUp": "{{title}} aufgenommen."
+  },
   "edit": "Bearbeiten",
   "editTitle": "Titel des Eintrags",
   "empty": "Keine Einträge.",
@@ -14,6 +22,7 @@
     "submit": "Hinzufügen",
     "titleLabel": "Neuer Eintrag"
   },
+  "handle": "Eintrag verschieben",
   "loading": "Lädt …",
   "openOnly": "Nur offene Einträge",
   "save": "Speichern"

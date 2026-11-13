@@ -31,3 +31,11 @@ RETURNING id;
 
 -- name: DeleteAllEntries :exec
 DELETE FROM entries;
+
+-- name: MoveEntry :one
+UPDATE entries
+SET list_id = sqlc.arg(list_id),
+    position = sqlc.arg(position),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id)
+RETURNING id;
