@@ -37,6 +37,7 @@ describe('finalOrder', () => {
     { name: 'skips a hidden entry when moving down', preview: entries, active: 'a1', over: 'a3', want: { listId: 'A', entryIds: ['a2', 'a3', 'a1'] } },
     { name: 'keeps the place from the preview in another list', preview: moveToList(entries, 'a2', 'B', 'b2'), active: 'a2', over: 'a2', want: { listId: 'B', entryIds: ['b1', 'a2', 'b2'] } },
     { name: 'moves inside the other list after the switch', preview: moveToList(entries, 'a2', 'B', 'b1'), active: 'a2', over: 'b2', want: { listId: 'B', entryIds: ['b1', 'b2', 'a2'] } },
+    { name: 'moves to the end when dropped on the free area of its own list', preview: entries, active: 'a1', over: 'a3', want: { listId: 'A', entryIds: ['a2', 'a3', 'a1'] } },
     { name: 'drops into an empty list', preview: moveToList(entries, 'a2', 'C', null), active: 'a2', over: null, want: { listId: 'C', entryIds: ['a2'] } },
     { name: 'returns null when dropped on itself', preview: entries, active: 'a1', over: 'a1', want: null },
     { name: 'returns null for an unknown entry', preview: entries, active: 'x', over: 'a1', want: null },

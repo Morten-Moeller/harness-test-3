@@ -21,6 +21,10 @@ async function titlesOf(card: Locator): Promise<string[]> {
   return card.getByTestId('entry-title').allTextContents()
 }
 
+function waitForSave(page: Page): Promise<unknown> {
+  return page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().endsWith('/entries/order'))
+}
+
 async function visibleOrder(card: Locator): Promise<string[]> {
   const items = await card.getByTestId('entry-item').all()
   const rows = await Promise.all(
@@ -40,25 +44,20 @@ async function dragAndCapture(page: Page, handle: Locator, target: Locator, card
   await page.mouse.move(from.x + 12, from.y + 12, { steps: 4 })
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 20 })
   await expect(page.getByTestId('entry-overlay')).toBeVisible()
-  await page.waitForTimeout(300)
-  const shown = await visibleOrder(card)
+  let previous = ''
+  await expect
+    .poll(async () => {
+      const current = (await visibleOrder(card)).join('|')
+      const stable = current === previous
+      previous = current
+      return stable
+    }, { intervals: [100] })
+    .toBe(true)
+  const shown = previous.split('|')
+  const saved = waitForSave(page)
   await page.mouse.up()
+  await saved
   return shown
-}
-
-async function dragWithMouse(page: Page, handle: Locator, target: Locator): Promise<void> {
-  const from = await handle.boundingBox()
-  const to = await target.boundingBox()
-  if (from === null || to === null) {
-    throw new Error('handle or target is not visible')
-  }
-  const startX = from.x + from.width / 2
-  const startY = from.y + from.height / 2
-  await page.mouse.move(startX, startY)
-  await page.mouse.down()
-  await page.mouse.move(startX + 12, startY + 12, { steps: 4 })
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 20 })
-  await page.mouse.up()
 }
 
 test.use({ viewport: { width: 1280, height: 1400 } })
@@ -80,7 +79,9 @@ test('moves an entry down with the keyboard and keeps the order after reload', a
   await expect(page.getByRole('status')).toContainText('Brot')
   await page.keyboard.press('ArrowDown')
   await expect(page.getByRole('status')).toContainText('Brot ist über Position 3.')
+  const saved = waitForSave(page)
   await page.keyboard.press('Space')
+  await saved
   await expect(page.getByRole('status')).toContainText('Brot an Position 3 abgelegt.')
 
   await expect.poll(() => titlesOf(card)).toEqual(['Milch', 'Äpfel', 'Brot'])
@@ -141,8 +142,9 @@ test('drags an entry into an empty list', async ({ page }) => {
   await expect(empty.getByTestId('entries-empty')).toBeVisible()
   const arbeit = listCard(page, 'Arbeit')
 
-  await dragWithMouse(page, entryOf(arbeit, 'Termin planen').getByTestId('entry-handle'), empty.getByTestId('entry-list'))
+  const shown = await dragAndCapture(page, entryOf(arbeit, 'Termin planen').getByTestId('entry-handle'), empty.getByTestId('entry-list'), empty)
 
+  expect(shown).toEqual(['Termin planen'])
   await expect.poll(() => titlesOf(empty)).toEqual(['Termin planen'])
   await expect.poll(() => titlesOf(arbeit)).toEqual(['Bericht schreiben', 'Rechnung prüfen'])
   await page.reload()

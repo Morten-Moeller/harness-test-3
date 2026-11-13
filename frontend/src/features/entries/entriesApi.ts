@@ -77,11 +77,13 @@ export function useDeleteEntry() {
   })
 }
 
+export type ReorderVariables = EntryOrder & { previous: Entry[] }
+
 export function useReorderEntries() {
   const api = useApi()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ listId, entryIds }: EntryOrder) => {
+    mutationFn: async ({ listId, entryIds }: ReorderVariables) => {
       const { error, response } = await api.PUT('/api/lists/{listId}/entries/order', {
         params: { path: { listId } },
         body: { entryIds },
@@ -90,18 +92,12 @@ export function useReorderEntries() {
         throw new ApiError(parseProblem(error), response.status)
       }
     },
-    onMutate: async (order) => {
+    onMutate: async ({ listId, entryIds, previous }) => {
+      queryClient.setQueryData<Entry[]>(entriesKey, applyOrder(previous, { listId, entryIds }))
       await queryClient.cancelQueries({ queryKey: entriesKey })
-      const previous = queryClient.getQueryData<Entry[]>(entriesKey)
-      if (previous !== undefined) {
-        queryClient.setQueryData<Entry[]>(entriesKey, applyOrder(previous, order))
-      }
-      return { previous }
     },
-    onError: (_error, _order, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(entriesKey, context.previous)
-      }
+    onError: (_error, { previous }) => {
+      queryClient.setQueryData(entriesKey, previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: entriesKey }),
   })

@@ -33,6 +33,11 @@ export function useDragPreview(): Entry[] | null {
   return useContext(PreviewContext)
 }
 
+function lastIdOfList(entries: Entry[], listId: string): string | null {
+  const ids = entries.filter((entry) => entry.listId === listId).map((entry) => entry.id)
+  return ids.at(-1) ?? null
+}
+
 export function listDroppableId(listId: string): string {
   return `list:${listId}`
 }
@@ -153,11 +158,12 @@ export function EntriesDndProvider({ children }: { children: ReactNode }) {
       finish()
       return
     }
-    const overId = over.data.current?.type === 'entry' ? String(over.id) : null
+    const data = over.data.current as DragData | undefined
+    const overId = data?.type === 'entry' ? String(over.id) : data?.type === 'list' ? lastIdOfList(current, data.listId) : null
     const order = finalOrder(original, current, String(active.id), overId)
     if (order !== null) {
       queryClient.setQueryData<Entry[]>(entriesKey, applyOrder(current, order))
-      reorder.mutate(order)
+      reorder.mutate({ ...order, previous: original })
     }
     finish()
   }
