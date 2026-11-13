@@ -1,13 +1,13 @@
 ---
 id: "0001"
 title: Grundgerüst
-status: Review
+status: done
 risk: high
 adrs: ["0001", "0002", "0003", "0004"]
 owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
-pr: ""
+pr: "#1"
 note: "freigegeben in der Session"
 ---
 
