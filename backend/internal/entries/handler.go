@@ -1,9 +1,11 @@
 package entries
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -141,12 +143,18 @@ func (h *Handler) ReorderEntries(w http.ResponseWriter, r *http.Request, listId 
 		problem.Write(w, r, problem.Validation(err.Error()))
 		return
 	}
+	positions := make(map[uuid.UUID]int32, len(body.EntryIds))
+	for index, id := range body.EntryIds {
+		positions[id] = int32(index + 1)
+	}
+	lockOrder := slices.Clone(body.EntryIds)
+	slices.SortFunc(lockOrder, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
 	err := h.inTransaction(r.Context(), func(queries *store.Queries) error {
 		now := h.now()
-		for index, id := range body.EntryIds {
+		for _, id := range lockOrder {
 			_, err := queries.MoveEntry(r.Context(), store.MoveEntryParams{
 				ListID:   listId,
-				Position: int32(index + 1),
+				Position: positions[id],
 				Now:      now,
 				ID:       id,
 			})
