@@ -8,7 +8,7 @@ owner: Morten Möller
 created: 2026-11-13
 updated: 2026-11-13
 pr: "#1"
-note: "freigegeben in der Session"
+note: "alle Kriterien erfüllt; A7 Teil ohne Docker nicht prüfbar"
 ---
 
 # Grundgerüst
