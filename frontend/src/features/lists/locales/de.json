@@ -2,7 +2,7 @@
   "cancel": "Abbrechen",
   "confirm": "Bestätigen",
   "confirmDelete": "Liste mit allen Einträgen löschen?",
-  "delete": "Löschen",
+  "deleteList": "Liste löschen",
   "dnd": {
     "cancelled": "Verschieben der Liste {{title}} abgebrochen.",
     "dropped": "Liste {{title}} an Position {{position}} abgelegt.",
@@ -11,6 +11,7 @@
     "noTarget": "Liste {{title}} ist über keinem Ziel.",
     "pickedUp": "Liste {{title}} aufgenommen."
   },
+  "editList": "Liste bearbeiten: {{title}}",
   "editTitle": "Titel der Liste",
   "empty": "Noch keine Listen.",
   "errors": {
@@ -25,7 +26,5 @@
   },
   "handle": "Liste verschieben",
   "loading": "Lädt …",
-  "rename": "Umbenennen",
-  "save": "Speichern",
   "title": "Listen"
 }

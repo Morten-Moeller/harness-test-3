@@ -32,7 +32,8 @@ Alle drei starten mit `docker compose up` (ADR 0004).
   `entries`) mit Seite, Queries und Sprachdatei (`locales/de.json` als i18next-Namespace).
   `frontend/src/app/` verdrahtet Provider und Konfiguration und verbindet die Features
   (`ListsPage` bekommt `EntryList` als Render-Funktion), `frontend/src/api/` den generierten
-  Client. Features importieren aus `api` und `app`, nie aus einem anderen Feature.
+  Client, `frontend/src/ui/` gemeinsame Bedienelemente ohne Fachbegriffe (`InlineTitle`,
+  `TrashIcon`). Features importieren aus `api`, `app` und `ui`, nie aus einem anderen Feature.
 - Contract first: ein Endpunkt steht in `contracts/api/openapi.yaml`, bevor es Code gibt;
   `make generate` erzeugt beide Seiten, `make drift` prüft sie.
 

@@ -1,7 +1,7 @@
 ---
 id: "0007"
 title: Titel per Doppelklick oder Enter bearbeiten, Löschen als Icon in der Bearbeitung
-status: approved
+status: Review
 risk: medium
 adrs: []
 owner: Morten Möller

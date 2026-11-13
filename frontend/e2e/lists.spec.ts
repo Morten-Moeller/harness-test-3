@@ -53,7 +53,7 @@ test('renames a list', async ({ page }) => {
   const card = listCard(page, 'Einkauf')
   await expect(card).toBeVisible()
 
-  await card.getByTestId('list-rename').click()
+  await card.getByTestId('list-title').dblclick()
   const editForm = page.getByTestId('list-edit-form')
   const input = editForm.getByTestId('list-edit-input')
   await expect(input).toBeFocused()
@@ -66,17 +66,13 @@ test('renames a list', async ({ page }) => {
   await expect(editForm).toHaveCount(0)
   await expect(listCard(page, 'Einkauf')).toHaveCount(0)
 
-  await renamed.getByTestId('list-rename').click()
+  await renamed.getByTestId('list-title').focus()
+  await page.keyboard.press('Enter')
   await input.fill('verworfen')
   await input.press('Escape')
   await expect(editForm).toHaveCount(0)
   await expect(renamed).toBeVisible()
-
-  await renamed.getByTestId('list-rename').click()
-  await input.fill('verworfen')
-  await editForm.getByTestId('list-cancel').click()
-  await expect(editForm).toHaveCount(0)
-  await expect(renamed).toBeVisible()
+  await expect(renamed.getByTestId('list-title')).toBeFocused()
 
   await page.reload()
   await expect(listCard(page, newTitle)).toBeVisible()
@@ -87,10 +83,10 @@ test('shows the validation message for an empty list title', async ({ page }) =>
   const card = listCard(page, 'Arbeit')
   await expect(card).toBeVisible()
 
-  await card.getByTestId('list-rename').click()
+  await card.getByTestId('list-title').dblclick()
   const editForm = page.getByTestId('list-edit-form')
   await editForm.getByTestId('list-edit-input').fill('   ')
-  await editForm.getByTestId('list-save').click()
+  await editForm.getByTestId('list-edit-input').press('Enter')
 
   await expect(editForm.getByTestId('list-error')).toHaveText(de.errors.validationFailed)
   await expect(editForm.getByTestId('list-edit-input')).toBeVisible()
@@ -101,7 +97,8 @@ test('keeps the list after cancel', async ({ page }) => {
   const card = listCard(page, 'Haushalt')
   await expect(card).toBeVisible()
 
-  await card.getByTestId('list-delete').click()
+  await card.getByTestId('list-title').dblclick()
+  await page.getByTestId('list-edit-form').getByTestId('list-delete').click()
   await expect(card.getByTestId('list-delete-confirm')).toContainText(de.confirmDelete)
   await card.getByTestId('list-delete-cancel').click()
 
@@ -120,7 +117,8 @@ test('deletes a list with its entries after confirmation', async ({ page }) => {
   await expect(card).toBeVisible()
   await expect(card.getByTestId('entry-item').filter({ hasText: entryTitle })).toBeVisible()
 
-  await card.getByTestId('list-delete').click()
+  await card.getByTestId('list-title').dblclick()
+  await page.getByTestId('list-edit-form').getByTestId('list-delete').click()
   await card.getByTestId('list-delete-confirm-button').click()
 
   await expect(listCard(page, 'Haushalt')).toHaveCount(0)
